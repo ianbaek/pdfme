@@ -1,5 +1,6 @@
 import type { ALIGNMENT, VERTICAL_ALIGNMENT } from '../text/types.js';
 import type { Schema } from '@pdfme/common';
+import type { BarcodeSchema } from '../barcodes/types.js';
 
 export type Spacing = { top: number; right: number; bottom: number; left: number };
 type BorderInsets = Spacing;
@@ -20,6 +21,14 @@ export interface CellStyle {
 }
 
 export type CellSchema = Schema & CellStyle;
+
+export interface CellImageSchema extends Schema {
+  type: 'image';
+  content: string; // Base64 data URI
+  aspectRatio?: number;
+}
+
+export type CellContent = string | BarcodeSchema | CellImageSchema;
 
 export interface TableSchema extends Schema {
   showHead: boolean;
@@ -61,8 +70,8 @@ export interface TableInput {
 }
 
 interface ContentInput {
-  body: string[][];
-  head: string[][];
+  body: CellContent[][];
+  head: CellContent[][]; // Changed from string[][]
   columns: number[];
 }
 

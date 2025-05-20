@@ -1,12 +1,13 @@
 import { Font, mm2pt, pt2mm } from '@pdfme/common';
 import type { Font as FontKitFont } from 'fontkit';
 import { splitTextToSize, getFontKitFont, widthOfTextAtSize } from '../text/helper.js';
-import type { Styles, TableInput, Settings, Section, StylesProps } from './types.js';
+import type { Styles, TableInput, Settings, Section, StylesProps, CellContent } from './types.js';
+import { BARCODE_TYPES } from '../barcodes/constants.js';
 
 type ContentSettings = { body: Row[]; head: Row[]; columns: Column[] };
 
 export class Cell {
-  raw: string;
+  raw: CellContent;
   text: string[];
   styles: Styles;
   section: Section;
@@ -21,15 +22,49 @@ export class Cell {
   x = 0;
   y = 0;
 
-  constructor(raw: string, styles: Styles, section: Section) {
+  constructor(raw: CellContent, styles: Styles, section: Section) {
     this.styles = styles;
     this.section = section;
     this.raw = raw;
     const splitRegex = /\r\n|\r|\n/g;
-    this.text = raw.split(splitRegex);
+    
+    if (typeof raw === 'string') {
+      this.text = raw.split(splitRegex);
+    } else if (raw && typeof raw === 'object') {
+      this.text = [''];
+    } else {
+      this.text = [''];
+    }
   }
 
   getContentHeight() {
+    // If contentHeight was already calculated based on content type, use it
+    if (this.contentHeight > 0) {
+      return this.contentHeight;
+    }
+    
+    // For non-string content, calculate based on content type
+    if (typeof this.raw === 'object' && this.raw) {
+      const contentType = this.raw.type;
+      const vPadding = this.padding('top') + this.padding('bottom');
+      
+      if (contentType === 'image') {
+        // Default image height if not calculated earlier
+        const minHeight = pt2mm(this.styles.fontSize) * 4; // Reasonable default
+        return Math.max(minHeight + vPadding, this.styles.minCellHeight);
+      }
+      else if (contentType && ['qrcode', 'pdf417', 'datamatrix', 'code128', 'code39'].includes(contentType)) {
+        // Default barcode height if not calculated earlier
+        const minHeight = pt2mm(this.styles.fontSize) * 3; // Reasonable default
+        return Math.max(minHeight + vPadding, this.styles.minCellHeight);
+      }
+      
+      // Unknown content type
+      const height = pt2mm(this.styles.fontSize) * this.styles.lineHeight + vPadding;
+      return Math.max(height, this.styles.minCellHeight);
+    }
+    
+    // Original logic for text content
     const lineCount = Array.isArray(this.text) ? this.text.length : 1;
     const lineHeight = pt2mm(this.styles.fontSize) * this.styles.lineHeight;
     const vPadding = this.padding('top') + this.padding('bottom');
@@ -64,14 +99,14 @@ export class Column {
 }
 
 export class Row {
-  readonly raw: string[];
+  readonly raw: CellContent[];
   readonly index: number;
   readonly section: Section;
   readonly cells: { [key: string]: Cell };
 
   height = 0;
 
-  constructor(raw: string[], index: number, section: Section, cells: { [key: string]: Cell }) {
+  constructor(raw: CellContent[], index: number, section: Section, cells: { [key: string]: Cell }) {
     this.raw = raw;
     this.index = index;
     this.section = section;
@@ -270,15 +305,81 @@ async function fitContent(
       if (!cell) continue;
 
       const fontKitFont = await getFontKitFontByFontName(cell.styles.fontName);
-      cell.text = splitTextToSize({
-        value: cell.raw,
-        characterSpacing: cell.styles.characterSpacing,
-        boxWidthInPt: mm2pt(cell.width),
-        fontSize: cell.styles.fontSize,
-        fontKitFont,
-      });
+      
+      // Handle different content types
+      if (typeof cell.raw === 'string') {
+        cell.text = splitTextToSize({
+          value: cell.raw,
+          characterSpacing: cell.styles.characterSpacing,
+          boxWidthInPt: mm2pt(cell.width),
+          fontSize: cell.styles.fontSize,
+          fontKitFont,
+        });
+      } else if (cell.raw && typeof cell.raw === 'object') {
+        // Handle non-string content (barcodes and images)
+        const contentType = cell.raw.type;
+        
+        // Available content area (accounting for padding)
+        const hPadding = cell.padding('left') + cell.padding('right');
+        const vPadding = cell.padding('top') + cell.padding('bottom');
+        const availableWidth = cell.width - hPadding;
+        
+        if (contentType === 'image') {
+          const imageContent = cell.raw;
+          const aspectRatio = imageContent.aspectRatio || 1;
+          const imageHeight = availableWidth / aspectRatio;
+          cell.text = ['[Image]']
+          cell.contentHeight = imageHeight + vPadding;
+        } 
+        else if (contentType && BARCODE_TYPES.includes(contentType)) {
+          const barcodeContent = cell.raw;
+          let aspectRatio = 1; // Default
+          switch (contentType) {
+            case 'qrcode':
+            case 'gs1datamatrix':
+              aspectRatio = 1; // Square 1:1
+              break;
+              
+            // Rectangular 2D barcodes
+            case 'pdf417':
+              aspectRatio = 3; // Typically wider than tall (3:1)
+              break;
+              
+            // Linear barcodes - aspect ratio depends on content length
+            case 'code39':
+            case 'code128':
+            case 'ean13':
+            case 'ean8':
+            case 'upca':
+            case 'upce':
+            case 'itf14':
+            case 'nw7': // Same as Codaba
+              const dataLength = (typeof barcodeContent.content === 'string') ? barcodeContent.content.length : 10;
+              aspectRatio = Math.max(2, dataLength / 3);
+              break;
+              
+            // Specialized postal codes
+            case 'japanpost':
+              aspectRatio = 4; // Typically wide and short (4:1)
+              break;
+              
+            default:
+              aspectRatio = 2; // Safe default (2:1)
+          }
+          
+          const barcodeHeight = availableWidth / aspectRatio;
+          cell.text = ['[Barcode]'];
+          cell.contentHeight = Math.max(barcodeHeight, pt2mm(cell.styles.fontSize) * 2) + vPadding;
+        }
+        else {
+          cell.text = ['[Content]'];
+          cell.contentHeight = pt2mm(cell.styles.fontSize) * cell.styles.lineHeight + vPadding;
+        }
+      }
 
-      cell.contentHeight = cell.getContentHeight();
+      if (!cell.contentHeight) {
+        cell.contentHeight = cell.getContentHeight();
+      }
 
       let realContentHeight = cell.contentHeight;
       if (rowSpanHeight && rowSpanHeight.count > 0) {
@@ -391,6 +492,11 @@ async function calculate(
 
 function getStringWidth(cell: Cell, fontKitFont: FontKitFont) {
   const text = cell.text;
+  
+  if (!text || text.length === 0) {
+    return 0;
+  }
+  
   const textArr: string[] = Array.isArray(text) ? text : [text];
   const fontSize = cell.styles.fontSize;
   const characterSpacing = cell.styles.characterSpacing;

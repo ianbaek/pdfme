@@ -16,6 +16,7 @@ import type {
   TableInput,
   StylesProps,
   Section,
+  CellContent,
 } from './types.js';
 import { Cell, Column, Row, Table } from './classes.js';
 
@@ -35,8 +36,8 @@ interface UserOptions {
   showHead: boolean;
   tableLineWidth?: number;
   tableLineColor?: string;
-  head?: string[][];
-  body?: string[][];
+  head?: CellContent[][];
+  body?: CellContent[][];
 
   styles?: Partial<Styles>;
   bodyStyles?: Partial<Styles>;
@@ -49,7 +50,7 @@ interface UserOptions {
 
 function parseSection(
   sectionName: Section,
-  sectionRows: string[][],
+  sectionRows: CellContent[][],
   columns: Column[],
   styleProps: StylesProps,
   fallbackFontName: string,
@@ -165,7 +166,7 @@ function mapCellStyle(style: CellStyle): Partial<Styles> {
   };
 }
 
-function getTableOptions(schema: TableSchema, body: string[][]): UserOptions {
+function getTableOptions(schema: TableSchema, body: CellContent[][]): UserOptions {
   const columnStylesWidth = schema.headWidthPercentages.reduce(
     (acc, cur, i) => ({ ...acc, [i]: { cellWidth: schema.width * (cur / 100) } }),
     {} as Record<number, Partial<Styles>>,
@@ -190,7 +191,7 @@ function getTableOptions(schema: TableSchema, body: string[][]): UserOptions {
   );
 
   return {
-    head: [schema.head],
+    head: [schema.head.map(h => h as CellContent)],
     body,
     showHead: schema.showHead,
     startY: schema.position.y,
@@ -229,11 +230,12 @@ function parseStyles(cInput: UserOptions) {
 function parseContent4Input(options: UserOptions) {
   const head = options.head || [];
   const body = options.body || [];
-  const columns = (head[0] || body[0] || []).map((_, index) => index);
+  const firstRowForColumnDerivation = head[0] || body[0] || [];
+  const columns = firstRowForColumnDerivation.map((_, index) => index);
   return { columns, head, body };
 }
 
-function parseInput(schema: TableSchema, body: string[][]): TableInput {
+function parseInput(schema: TableSchema, body: CellContent[][]): TableInput {
   const options = getTableOptions(schema, body);
   const styles = parseStyles(options);
   const settings = {
@@ -250,7 +252,7 @@ function parseInput(schema: TableSchema, body: string[][]): TableInput {
   return { content, styles, settings };
 }
 
-export function createSingleTable(body: string[][], args: CreateTableArgs) {
+export function createSingleTable(body: CellContent[][], args: CreateTableArgs) {
   const { options, _cache, basePdf } = args;
   if (!isBlankPdf(basePdf)) {
     console.warn(

@@ -1,10 +1,14 @@
-import type { TableSchema } from './types.js';
+import type { TableSchema, CellContent, CellImageSchema, CellSchema } from './types.js';
 import type { PDFRenderProps, Schema, BasePdf, CommonOptions } from '@pdfme/common';
 import { Cell, Table, Row, Column } from './classes.js';
 import { rectangle } from '../shapes/rectAndEllipse.js';
-import cell from './cell.js';
+import cellSchema from './cell.js';
 import { getBodyWithRange } from './helper.js';
 import { createSingleTable } from './tableHelper.js';
+import { pdfRender as barcodePdfRender } from '../barcodes/pdfRender.js';
+import imageSchema from '../graphics/image.js';
+import { BarcodeSchema } from '../barcodes/types.js';
+import { BARCODE_TYPES } from '../barcodes/constants.js';
 
 // Define the CreateTableArgs interface locally since it's not exported from tableHelper.js
 interface CreateTableArgs {
@@ -17,31 +21,86 @@ interface CreateTableArgs {
 type Pos = { x: number; y: number };
 
 const rectanglePdfRender = rectangle.pdf;
-const cellPdfRender = cell.pdf;
+const cellBasePdfRender = cellSchema.pdf;
+const imagePdfRender = imageSchema.pdf;
 
-async function drawCell(arg: PDFRenderProps<TableSchema>, cell: Cell) {
-  await cellPdfRender({
-    ...arg,
-    value: cell.raw,
-    schema: {
-      name: '',
-      type: 'cell',
-      position: { x: cell.x, y: cell.y },
-      width: cell.width,
-      height: cell.height,
-      fontName: cell.styles.fontName,
-      alignment: cell.styles.alignment,
-      verticalAlignment: cell.styles.verticalAlignment,
-      fontSize: cell.styles.fontSize,
-      lineHeight: cell.styles.lineHeight,
-      characterSpacing: cell.styles.characterSpacing,
-      backgroundColor: cell.styles.backgroundColor,
-      fontColor: cell.styles.textColor,
-      borderColor: cell.styles.lineColor,
-      borderWidth: cell.styles.lineWidth,
-      padding: cell.styles.cellPadding,
-    },
-  });
+async function drawCell(arg: PDFRenderProps<TableSchema>, cellInfo: Cell) {
+  const cellContent = cellInfo.raw;
+  const cellPosition = { x: cellInfo.x, y: cellInfo.y };
+  const cellDimensions = { width: cellInfo.width, height: cellInfo.height };
+
+  const baseCellSchemaForRender: CellSchema = {
+    name: '',
+    type: 'cell',
+    position: cellPosition,
+    width: cellDimensions.width,
+    height: cellDimensions.height,
+    fontName: cellInfo.styles.fontName,
+    alignment: cellInfo.styles.alignment,
+    verticalAlignment: cellInfo.styles.verticalAlignment,
+    fontSize: cellInfo.styles.fontSize,
+    lineHeight: cellInfo.styles.lineHeight,
+    characterSpacing: cellInfo.styles.characterSpacing,
+    backgroundColor: cellInfo.styles.backgroundColor,
+    fontColor: cellInfo.styles.textColor,
+    borderColor: cellInfo.styles.lineColor,
+    borderWidth: cellInfo.styles.lineWidth,
+    padding: cellInfo.styles.cellPadding,
+  };
+
+  if (typeof cellContent === 'string') {
+    await cellBasePdfRender({
+      ...arg,
+      value: cellContent,
+      schema: baseCellSchemaForRender,
+    });
+  } else if (typeof cellContent === 'object' && 'type' in cellContent) {
+    await cellBasePdfRender({
+      ...arg,
+      value: '',
+      schema: {
+        ...baseCellSchemaForRender,
+        fontColor: 'rgba(0,0,0,0)',
+      },
+    });
+    
+    const contentWidth = cellDimensions.width - baseCellSchemaForRender.padding.left - baseCellSchemaForRender.padding.right;
+    const contentHeight = cellDimensions.height - baseCellSchemaForRender.padding.top - baseCellSchemaForRender.padding.bottom;
+    const contentPosition = {
+        x: cellPosition.x + baseCellSchemaForRender.padding.left,
+        y: cellPosition.y + baseCellSchemaForRender.padding.top,
+    };
+
+    if (cellContent.type === 'image' && imagePdfRender) {
+      const image = cellContent;
+      const imageSchemaForRender: CellImageSchema = {
+          name: '',
+          type: 'image',
+          content: image.content,
+          position: contentPosition,
+          width: contentWidth,
+          height: contentHeight,
+      };
+      await imagePdfRender({
+        ...arg,
+        value: image.content,
+        schema: imageSchemaForRender,
+      });
+    } else if (BARCODE_TYPES.includes(cellContent.type as typeof BARCODE_TYPES[number]) && barcodePdfRender) {
+        const barcode = cellContent as BarcodeSchema;
+        const barcodeSchemaForRender = {
+            ...barcode,
+            position: contentPosition,
+            width: contentWidth,
+            height: contentHeight,
+        };
+        await barcodePdfRender({
+            ...arg,
+            value: barcode.content || '',
+            schema: barcodeSchemaForRender,
+        });
+    }
+  }
 }
 
 async function drawRow(
@@ -119,11 +178,10 @@ export const pdfRender = async (arg: PDFRenderProps<TableSchema>) => {
   const { value, schema, basePdf, options, _cache } = arg;
 
   const body = getBodyWithRange(
-    typeof value !== 'string' ? JSON.stringify(value || '[]') : value,
+    typeof value !== 'string' ? (value ? JSON.stringify(value) : '[]') : value || '[]',
     schema.__bodyRange,
   );
 
-  // Create a properly typed CreateTableArgs object
   const createTableArgs: CreateTableArgs = {
     schema,
     basePdf,
@@ -131,14 +189,7 @@ export const pdfRender = async (arg: PDFRenderProps<TableSchema>) => {
     _cache,
   };
 
-  // Ensure body is properly typed before passing to createSingleTable
-  // Ensure body is properly typed as string[][] before passing to createSingleTable
-  const typedBody: string[][] = Array.isArray(body)
-    ? body.map((row) => (Array.isArray(row) ? row.map((cell) => String(cell)) : []))
-    : [];
-  const table = await createSingleTable(typedBody, createTableArgs);
+  const table = await createSingleTable(body as CellContent[][], createTableArgs);
 
-  // Use the original arg directly since drawTable expects PDFRenderProps<TableSchema>
-  // which is the same type as our arg parameter
   await drawTable(arg, table);
 };
