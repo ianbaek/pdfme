@@ -37,3 +37,14 @@ If `npm run dev` is running in each package, changes made will be reflected in t
 Please feel free to send a PR if you can fix bugs or add new features. Also, don't forget to add the necessary tests before sending a PR and make sure that the tests pass.
 
 Happy hacking!
+
+# To include dist folders in a new branch
+
+```cmd
+git checkout -b <branch-name>
+git add -f packages/common/dist packages/converter/dist packages/generator/dist packages/manipulator/dist packages/schemas/dist packages/ui/dist 
+git commit -m "feat: include dist folders for branch"
+git push origin <branch-name>
+```
+
+
