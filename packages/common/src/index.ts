@@ -4,6 +4,8 @@ import {
   PT_TO_MM_RATIO,
   PT_TO_PX_RATIO,
   BLANK_PDF,
+  BLANK_A4_PDF,
+  CUSTOM_A4_PDF,
   ZOOM,
   DEFAULT_FONT_NAME,
 } from './constants.js';
@@ -27,10 +29,12 @@ import type {
   ColorType,
   BasePdf,
   BlankPdf,
+  CustomPdf,
   Template,
   CommonOptions,
   GeneratorOptions,
   Plugins,
+  PluginRegistry,
   GenerateProps,
   UIOptions,
   UIProps,
@@ -62,6 +66,7 @@ import {
 } from './helper.js';
 import { getDynamicTemplate } from './dynamicTemplate.js';
 import { replacePlaceholders } from './expression.js';
+import { pluginRegistry } from './pluginRegistry.js';
 
 export {
   PDFME_VERSION,
@@ -69,6 +74,8 @@ export {
   PT_TO_MM_RATIO,
   PT_TO_PX_RATIO,
   BLANK_PDF,
+  BLANK_A4_PDF,
+  CUSTOM_A4_PDF,
   ZOOM,
   DEFAULT_FONT_NAME,
   cloneDeep,
@@ -93,6 +100,7 @@ export {
   checkPreviewProps,
   checkDesignerProps,
   checkGenerateProps,
+  pluginRegistry,
 };
 
 export type {
@@ -105,10 +113,13 @@ export type {
   ColorType,
   BasePdf,
   BlankPdf,
+  CustomPdf,
   Template,
   CommonOptions,
   GeneratorOptions,
+  Plugin,
   Plugins,
+  PluginRegistry,
   GenerateProps,
   UIOptions,
   UIProps,
@@ -123,6 +134,5 @@ export type {
   PDFRenderProps,
   UIRenderProps,
   Mode,
-  Plugin,
   Field,
 };

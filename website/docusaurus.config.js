@@ -13,6 +13,20 @@ const config = {
   projectName: 'pdfme',
   deploymentBranch: 'website',
   trailingSlash: false,
+  i18n: {
+    defaultLocale: 'en',
+    locales: ['en', 'ja'],
+    localeConfigs: {
+      en: {
+        label: 'English',
+        direction: 'ltr',
+      },
+      ja: {
+        label: '日本語',
+        direction: 'ltr',
+      },
+    },
+  },
   presets: [
     [
       'classic',
@@ -76,9 +90,9 @@ const config = {
   /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
   {
     announcementBar: {
-      id: 'support_us',
-      content: `⭐️  &nbsp; If you like pdfme, give it a star on <a target="_blank" rel="noopener noreferrer" href="https://github.com/pdfme/pdfme">GitHub</a>! &nbsp; ⭐️`,
-    },
+      id: 'deepwiki_launch',
+      content: `🚀 &nbsp; Check out our new <a target="_blank" rel="noopener noreferrer" href="https://deepwiki.com/pdfme/pdfme">DeepWiki</a>! Ask interactive questions on docs and source code. &nbsp; 🧑‍💻`,
+    },    
     image: 'img/ogimage.png',
     docs: {
       sidebar: {
@@ -93,7 +107,7 @@ const config = {
           type: 'doc',
           docId: 'getting-started',
           position: 'right',
-          label: 'Documentation',
+          label: 'Docs',
         },
         {
           to: '/templates',
@@ -118,6 +132,15 @@ const config = {
         {
           href: 'https://app.pdfme.com?utm_source=website&utm_content=navbar',
           label: 'Try pdfme Cloud',
+          position: 'right',
+        },
+        {
+          href: 'https://app.pdfme.com/contact?utm_source=website&utm_content=navbar',
+          label: 'Contact',
+          position: 'right',
+        },
+        {
+          type: 'localeDropdown',
           position: 'right',
         }
       ],

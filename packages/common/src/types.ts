@@ -12,6 +12,7 @@ import {
   SchemaForUI,
   BasePdf,
   BlankPdf,
+  CustomPdf,
   CommonOptions,
   Template,
   GeneratorOptions,
@@ -154,7 +155,16 @@ export type Plugin<T = Schema> = {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type Plugins = { [key: string]: Plugin<any> | undefined };
+export type Plugins = { [key: string]: Plugin<any> };
+
+export interface PluginRegistry {
+  plugins: { [key: string]: Plugin };
+  exists(): boolean;
+  values(): Plugin[];
+  entries(): [string, Plugin][];
+  findByType(type: string): Plugin | undefined;
+  findWithLabelByType(type: string): [string, Plugin|undefined];
+}
 
 export type Lang = z.infer<typeof Lang>;
 export type Dict = z.infer<typeof Dict>;
@@ -174,6 +184,7 @@ export type Font = z.infer<typeof Font>;
 export type ColorType = z.infer<typeof ColorType>;
 export type BasePdf = z.infer<typeof BasePdf>;
 export type BlankPdf = z.infer<typeof BlankPdf>;
+export type CustomPdf = z.infer<typeof CustomPdf>;
 export type Template = z.infer<typeof Template>;
 export type CommonOptions = z.infer<typeof CommonOptions>;
 export type GeneratorOptions = z.infer<typeof GeneratorOptions>;

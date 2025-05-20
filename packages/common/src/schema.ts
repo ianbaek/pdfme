@@ -74,6 +74,7 @@ export const Dict = z.object({
   'schemas.text.fit': z.string(),
   'schemas.text.dynamicFontSize': z.string(),
   'schemas.text.format': z.string(),
+  'schemas.radius': z.string(),
 
   'schemas.mvt.typingInstructions': z.string(),
   'schemas.mvt.sampleField': z.string(),
@@ -133,7 +134,7 @@ export const BlankPdf = z.object({
   staticSchema: z.array(Schema).optional(),
 });
 
-const CustomPdf = z.union([z.string(), ArrayBufferSchema, Uint8ArraySchema]);
+export const CustomPdf = z.union([z.string(), ArrayBufferSchema, Uint8ArraySchema]);
 
 export const BasePdf = z.union([CustomPdf, BlankPdf]);
 
@@ -159,12 +160,25 @@ export const Font = z.record(
   }),
 );
 
+export const Plugin = z
+  .object({
+    ui: z.function().args(z.any()).returns(z.any()),
+    pdf: z.function().args(z.any()).returns(z.any()),
+    propPanel: z.object({
+      schema: z.unknown(),
+      widgets: z.record(z.any()).optional(),
+      defaultSchema: Schema,
+    }),
+    icon: z.string().optional(),
+  })
+  .passthrough();
+
 export const CommonOptions = z.object({ font: Font.optional() }).passthrough();
 
 const CommonProps = z.object({
   template: Template,
   options: CommonOptions.optional(),
-  plugins: z.record(z.object({ ui: z.any(), pdf: z.any(), propPanel: z.any() })).optional(),
+  plugins: z.record(Plugin).optional(),
 });
 
 // -------------------generate-------------------

@@ -57,15 +57,15 @@
   "dependencies": {
     "@pdfme/pdf-lib": "*",
     "air-datepicker": "^3.5.3",
-    "bwip-js": "^4.1.1",
+    "bwip-js": "^4.6.0",
     "date-fns": "^4.1.0",
     "fontkit": "^2.0.2",
-    "lucide": "^0.477.0"
+    "lucide": "^0.507.0"
   },
   "devDependencies": {
-    "@pdfme/common": "file:../common",
+    "@pdfme/common": "*",
     "@types/bwip-js": "^3.2.1",
-    "@types/fontkit": "^2.0.4",
+    "@types/fontkit": "^2.0.8",
     "@types/pngjs": "^6.0.2",
     "jsqr": "^1.4.0",
     "pngjs": "^7.0.0"
