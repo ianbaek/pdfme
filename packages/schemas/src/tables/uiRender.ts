@@ -174,13 +174,13 @@ const renderRowUi = (args: {
             arg.onChange({ key: 'head', value: newHead });
           }
         },
-        value: cell.raw,
+        value: typeof cell.raw === 'string' ? cell.raw : (cell.raw?.type === 'image' ? '[Image]' : cell.raw?.type ? `[${cell.raw.type}]` : ''),
         placeholder: '',
         rootElement: div,
         schema: {
           name: '',
           type: 'cell',
-          content: cell.raw,
+          content: typeof cell.raw === 'string' ? cell.raw : (cell.raw?.type === 'image' ? '[Image]' : cell.raw?.type ? `[${cell.raw.type}]` : ''),
           position: { x: colOffsetX, y: rowOffsetY },
           width: cell.width,
           height: cell.height,
