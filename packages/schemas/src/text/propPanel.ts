@@ -57,6 +57,7 @@ export const propPanel: PropPanel<TextSchema> = {
     const enableDynamicFont = Boolean(
       (activeSchema as { dynamicFontSize?: unknown })?.dynamicFontSize,
     );
+    const enableFillable = Boolean((activeSchema as { fillable?: unknown })?.fillable);
 
     const textSchema: Record<string, PropPanelSchema> = {
       fontName: {
@@ -67,6 +68,7 @@ export const propPanel: PropPanel<TextSchema> = {
         placeholder: fallbackFontName,
         props: { options: fontNames.map((name) => ({ label: name, value: name })) },
         span: 12,
+        disabled: enableFillable,
       },
       fontSize: {
         title: i18n('schemas.text.size'),
@@ -82,20 +84,23 @@ export const propPanel: PropPanel<TextSchema> = {
         widget: 'inputNumber',
         span: 6,
         props: { min: 0 },
+        disabled: enableFillable,
       },
-      formatter: getExtraFormatterSchema(i18n),
+      formatter: getExtraFormatterSchema(i18n, enableFillable),
       lineHeight: {
         title: i18n('schemas.text.lineHeight'),
         type: 'number',
         widget: 'inputNumber',
         props: { step: 0.1, min: 0 },
         span: 8,
+        disabled: enableFillable,
       },
       useDynamicFontSize: { type: 'boolean', widget: 'UseDynamicFontSize', bind: false, span: 16 },
       dynamicFontSize: {
         type: 'object',
         widget: 'card',
         column: 3,
+        hidden: enableFillable,
         properties: {
           min: {
             title: i18n('schemas.text.min'),
@@ -180,5 +185,6 @@ export const propPanel: PropPanel<TextSchema> = {
     opacity: DEFAULT_OPACITY,
     strikethrough: false,
     underline: false,
+    fillable: false,
   },
 };

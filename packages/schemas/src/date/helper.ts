@@ -331,7 +331,7 @@ export const getPlugin = ({ type, icon }: { type: PickerType; icon: string }) =>
           ]);
         }
 
-        const formatter = getExtraFormatterSchema(i18n);
+        const formatter = getExtraFormatterSchema(i18n, false);
         formatter.buttons = formatter.buttons.filter(
           (button) => button.key === Formatter.ALIGNMENT,
         );

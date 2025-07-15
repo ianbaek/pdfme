@@ -25,6 +25,7 @@ export const Dict = z.object({
   edit: z.string(),
   required: z.string(),
   editable: z.string(),
+  fillable: z.string(),
   plsInputName: z.string(),
   fieldMustUniq: z.string(),
   notUniq: z.string(),
@@ -116,6 +117,7 @@ export const Schema = z
     opacity: z.number().optional(),
     readOnly: z.boolean().optional(),
     required: z.boolean().optional(),
+    fillable: z.boolean().optional(),
     __bodyRange: z.object({ start: z.number(), end: z.number().optional() }).optional(),
     __isSplit: z.boolean().optional(),
   })

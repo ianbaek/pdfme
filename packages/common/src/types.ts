@@ -55,7 +55,7 @@ export interface PDFRenderProps<T extends Schema> {
   pdfDoc: PDFDocument;
   page: PDFPage;
   options: GeneratorOptions;
-
+  hasFillable: boolean;
   _cache: Map<string | number, unknown>;
 }
 

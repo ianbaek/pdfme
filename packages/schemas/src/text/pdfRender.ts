@@ -1,4 +1,4 @@
-import { PDFFont, PDFDocument } from '@pdfme/pdf-lib';
+import { PDFFont, PDFDocument, PDFName, PDFBool, TextAlignment } from '@pdfme/pdf-lib';
 import type { Font as FontKitFont } from 'fontkit';
 import type { TextSchema } from './types.js';
 import {
@@ -33,21 +33,27 @@ import { convertForPdfLayoutProps, rotatePoint, hex2PrintingColor } from '../uti
 const embedAndGetFontObj = async (arg: {
   pdfDoc: PDFDocument;
   font: Font;
+  hasFillable: boolean;
   _cache: Map<PDFDocument, { [key: string]: PDFFont }>;
 }) => {
-  const { pdfDoc, font, _cache } = arg;
+  const { pdfDoc, font, hasFillable, _cache } = arg;
   if (_cache.has(pdfDoc)) {
     return _cache.get(pdfDoc) as { [key: string]: PDFFont };
   }
 
   const fontValues = await Promise.all(
-    Object.values(font).map(async (v) => {
+    Object.entries(font).map(async ([key, v]) => {
       let fontData = v.data;
       if (typeof fontData === 'string' && fontData.startsWith('http')) {
         fontData = await fetch(fontData).then((res) => res.arrayBuffer());
       }
       return pdfDoc.embedFont(fontData, {
-        subset: typeof v.subset === 'undefined' ? true : v.subset,
+        subset:
+          hasFillable && key === 'Roboto'
+            ? false
+            : typeof v.subset === 'undefined'
+              ? true
+              : v.subset,
       });
     }),
   );
@@ -88,7 +94,7 @@ const getFontProp = ({
 };
 
 export const pdfRender = async (arg: PDFRenderProps<TextSchema>) => {
-  const { value, pdfDoc, pdfLib, page, options, schema, _cache } = arg;
+  const { value, pdfDoc, pdfLib, page, options, schema, hasFillable, _cache } = arg;
   if (!value) return;
 
   const { font = getDefaultFont(), colorType } = options;
@@ -97,6 +103,7 @@ export const pdfRender = async (arg: PDFRenderProps<TextSchema>) => {
     embedAndGetFontObj({
       pdfDoc,
       font,
+      hasFillable,
       _cache: _cache as unknown as Map<PDFDocument, { [key: string]: PDFFont }>,
     }),
     getFontKitFont(schema.fontName, font, _cache as Map<string, FontKitFont>),
@@ -118,6 +125,37 @@ export const pdfRender = async (arg: PDFRenderProps<TextSchema>) => {
     position: { x, y },
     opacity,
   } = convertForPdfLayoutProps({ schema, pageHeight, applyRotateTranslate: false });
+
+  if (schema.fillable) {
+    const form = pdfDoc.getForm();
+
+    const textField = form.createTextField(schema.name);
+    textField.enableMultiline();
+    textField.setText('');
+
+    let bg;
+    if (schema.backgroundColor) {
+      bg = hex2PrintingColor(schema.backgroundColor, colorType);
+    }
+
+    textField.addToPage(page, {
+      x,
+      y,
+      width,
+      height,
+      borderWidth: 0,
+      borderColor: undefined,
+      font: pdfFontValue,
+      textColor: color,
+      backgroundColor: bg,
+    });
+
+    textField.setFontSize(fontSize);
+    textField.setAlignment(alignMap[alignment as keyof typeof alignMap]);
+    textField.defaultUpdateAppearances(pdfFontValue);
+    form.acroForm.dict.set(PDFName.of('NeedAppearances'), PDFBool.True);
+    return;
+  }
 
   if (schema.backgroundColor) {
     const color = hex2PrintingColor(schema.backgroundColor, colorType);
@@ -229,4 +267,10 @@ export const pdfRender = async (arg: PDFRenderProps<TextSchema>) => {
       opacity,
     });
   });
+};
+
+const alignMap = {
+  left: TextAlignment.Left,
+  center: TextAlignment.Center,
+  right: TextAlignment.Right,
 };

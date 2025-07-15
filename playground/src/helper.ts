@@ -23,7 +23,15 @@ export const getFontsData = (): Font => ({
   NotoSansJP: {
     fallback: false,
     data: 'https://fonts.gstatic.com/s/notosansjp/v53/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFBEj75vY0rw-oME.ttf',
-  }
+  },
+  NotoSansKR: {
+    fallback: false,
+    data: `https://dev.ianai.co/fonts/NotoSansKR.ttf`,
+  },
+  Pretendard: {
+    fallback: false,
+    data: `https://dev.ianai.co/fonts/Pretendard.ttf`,
+  },
 });
 
 export const readFile = (file: File | null, type: 'text' | 'dataURL' | 'arrayBuffer') => {

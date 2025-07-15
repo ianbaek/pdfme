@@ -31,6 +31,7 @@ interface GroupButtonBoolean {
   key: Formatter;
   icon: string;
   type: 'boolean';
+  disabled?: boolean;
 }
 
 interface GroupButtonString {
@@ -38,40 +39,63 @@ interface GroupButtonString {
   icon: string;
   type: 'select';
   value: string;
+  disabled?: boolean;
 }
 
 type GroupButton = GroupButtonBoolean | GroupButtonString;
 
-export function getExtraFormatterSchema(i18n: (key: string) => string): {
+export function getExtraFormatterSchema(
+  i18n: (key: string) => string,
+  enableFillable: boolean,
+): {
   title: string;
   widget: string;
   buttons: GroupButton[];
   span: number;
 } {
   const buttons: GroupButton[] = [
-    { key: Formatter.STRIKETHROUGH, icon: TextStrikethroughIcon, type: 'boolean' },
-    { key: Formatter.UNDERLINE, icon: TextUnderlineIcon, type: 'boolean' },
+    {
+      key: Formatter.STRIKETHROUGH,
+      icon: TextStrikethroughIcon,
+      type: 'boolean',
+      disabled: enableFillable,
+    },
+    {
+      key: Formatter.UNDERLINE,
+      icon: TextUnderlineIcon,
+      type: 'boolean',
+      disabled: enableFillable,
+    },
     { key: Formatter.ALIGNMENT, icon: TextAlignLeftIcon, type: 'select', value: DEFAULT_ALIGNMENT },
     { key: Formatter.ALIGNMENT, icon: TextAlignCenterIcon, type: 'select', value: ALIGN_CENTER },
     { key: Formatter.ALIGNMENT, icon: TextAlignRightIcon, type: 'select', value: ALIGN_RIGHT },
-    { key: Formatter.ALIGNMENT, icon: TextAlignJustifyIcon, type: 'select', value: ALIGN_JUSTIFY },
+    {
+      key: Formatter.ALIGNMENT,
+      icon: TextAlignJustifyIcon,
+      type: 'select',
+      value: ALIGN_JUSTIFY,
+      disabled: enableFillable,
+    },
     {
       key: Formatter.VERTICAL_ALIGNMENT,
       icon: TextVerticalAlignTopIcon,
       type: 'select',
       value: DEFAULT_VERTICAL_ALIGNMENT,
+      disabled: enableFillable,
     },
     {
       key: Formatter.VERTICAL_ALIGNMENT,
       icon: TextVerticalAlignMiddleIcon,
       type: 'select',
       value: VERTICAL_ALIGN_MIDDLE,
+      disabled: enableFillable,
     },
     {
       key: Formatter.VERTICAL_ALIGNMENT,
       icon: TextVerticalAlignBottomIcon,
       type: 'select',
       value: VERTICAL_ALIGN_BOTTOM,
+      disabled: enableFillable,
     },
   ];
   return {

@@ -6,6 +6,7 @@ interface ButtonConfig {
   icon: string;
   type: 'boolean' | 'select';
   value?: string;
+  disabled?: boolean;
 }
 
 const ButtonGroupWidget = (props: PropPanelWidgetProps) => {
@@ -58,6 +59,7 @@ const ButtonGroupWidget = (props: PropPanelWidgetProps) => {
           const active = isActive(btn);
           return (
             <Button
+              disabled={btn.disabled}
               type={active ? 'primary' : undefined}
               ghost={active}
               onClick={() => apply(btn)}

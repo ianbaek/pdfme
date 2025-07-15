@@ -330,6 +330,7 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
       activeElements.map((ae) => ae.id).includes(s.id),
     );
     const schemaTypes = selectedSchemas.map((s) => s.type);
+    const schemaFillables = selectedSchemas.map((s) => s?.fillable);
     const uniqueSchemaTypes = [...new Set(schemaTypes)];
 
     // Create a type-safe array of default schemas
@@ -344,7 +345,7 @@ const Canvas = (props: Props, ref: Ref<HTMLDivElement>) => {
     // Check if all schema types have rotate property
     return uniqueSchemaTypes.every((type) => {
       const matchingSchema = defaultSchemas.find((ds) => ds && 'type' in ds && ds.type === type);
-      return matchingSchema && 'rotate' in matchingSchema;
+      return matchingSchema && 'rotate' in matchingSchema && schemaFillables.every((fillable) => fillable === false);
     });
   }, [activeElements, pageCursor, schemasList, pluginsRegistry]);
 

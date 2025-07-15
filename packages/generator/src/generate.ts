@@ -61,6 +61,10 @@ const generate = async (props: GenerateProps) => {
 
     // Add proper type assertion for dynamicTemplate.schemas
     const schemas = dynamicTemplate.schemas as Schema[][];
+    const hasFillable = schemas.some((page: Schema[]) =>
+      page.some((schema: Schema) => schema.fillable),
+    );
+
     // Create a type-safe array of schema names without using Set spread which requires downlevelIteration
     const schemaNameSet = new Set<string>();
     schemas.forEach((page: Schema[]) => {
@@ -110,6 +114,7 @@ const generate = async (props: GenerateProps) => {
             pdfDoc,
             page,
             options,
+            hasFillable,
             _cache,
           };
           await render(staticRenderProps);
@@ -150,6 +155,7 @@ const generate = async (props: GenerateProps) => {
           pdfDoc,
           page,
           options,
+          hasFillable,
           _cache,
         };
         await render(renderProps);

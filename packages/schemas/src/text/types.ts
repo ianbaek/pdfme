@@ -19,6 +19,7 @@ export interface TextSchema extends Schema {
   lineHeight: number;
   strikethrough?: boolean;
   underline?: boolean;
+  fillable?: boolean;
   characterSpacing: number;
   dynamicFontSize?: {
     min: number;

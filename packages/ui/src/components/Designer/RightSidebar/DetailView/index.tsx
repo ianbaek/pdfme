@@ -145,6 +145,22 @@ const DetailView = (props: DetailViewProps) => {
           }
           continue;
         }
+        // for fillable text field
+        if (key === 'fillable' && value === true) {
+          changes.push({ key: 'required', value: false, schemaId: activeSchema.id });
+          changes.push({ key: 'required', value: false, schemaId: activeSchema.id });
+          changes.push({ key: 'rotate', value: 0, schemaId: activeSchema.id });
+          changes.push({ key: 'opacity', value: 1.0, schemaId: activeSchema.id });
+          changes.push({ key: 'fontName', value: 'Roboto', schemaId: activeSchema.id });
+          changes.push({ key: 'lineHeight', value: 1.0, schemaId: activeSchema.id });
+          changes.push({ key: 'characterSpacing', value: 0, schemaId: activeSchema.id });
+          changes.push({ key: 'strikethrough', value: false, schemaId: activeSchema.id });
+          changes.push({ key: 'underline', value: false, schemaId: activeSchema.id });
+          changes.push({ key: 'alignment', value: 'left', schemaId: activeSchema.id });
+          changes.push({ key: 'verticalAlignment', value: 'top', schemaId: activeSchema.id });
+          changes.push({ key: 'otherTest', value: 'top', schemaId: activeSchema.id });
+          changes.push({ key: 'useDynamicFontSize', value: true, schemaId: activeSchema.id });
+        }
 
         changes.push({ key, value, schemaId: activeSchema.id });
       }
@@ -234,12 +250,20 @@ const DetailView = (props: DetailViewProps) => {
         type: 'boolean',
         span: 8,
         hidden: typeof defaultSchema.readOnly !== 'undefined',
+        disabled: '{{formData.fillable}}',
       },
       required: {
         title: typedI18n('required'),
         type: 'boolean',
-        span: 16,
+        span: 8,
         hidden: '{{!formData.editable}}',
+        disabled: '{{formData.fillable}}',
+      },
+      fillable: {
+        title: typedI18n('fillable'),
+        type: 'boolean',
+        span: 8,
+        hidden: '{{formData.type !== "text"}}',
       },
       '-': { type: 'void', widget: 'Divider' },
       align: { title: typedI18n('align'), type: 'void', widget: 'AlignWidget' },
@@ -271,7 +295,7 @@ const DetailView = (props: DetailViewProps) => {
         title: typedI18n('rotate'),
         type: 'number',
         widget: 'inputNumber',
-        disabled: typeof defaultSchema.rotate === 'undefined',
+        disabled: typeof defaultSchema.rotate === 'undefined' ? true : '{{formData.fillable}}',
         max: 360,
         props: { min: 0 },
         span: 6,
@@ -280,7 +304,7 @@ const DetailView = (props: DetailViewProps) => {
         title: typedI18n('opacity'),
         type: 'number',
         widget: 'inputNumber',
-        disabled: typeof defaultSchema.opacity === 'undefined',
+        disabled: typeof defaultSchema.opacity === 'undefined' ? true : '{{formData.fillable}}',
         props: { step: 0.1, min: 0, max: 1 },
         span: 6,
       },
