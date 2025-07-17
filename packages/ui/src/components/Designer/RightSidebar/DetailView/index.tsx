@@ -146,20 +146,24 @@ const DetailView = (props: DetailViewProps) => {
           continue;
         }
         // for fillable text field
-        if (key === 'fillable' && value === true) {
-          changes.push({ key: 'required', value: false, schemaId: activeSchema.id });
-          changes.push({ key: 'required', value: false, schemaId: activeSchema.id });
-          changes.push({ key: 'rotate', value: 0, schemaId: activeSchema.id });
-          changes.push({ key: 'opacity', value: 1.0, schemaId: activeSchema.id });
-          changes.push({ key: 'fontName', value: 'Roboto', schemaId: activeSchema.id });
-          changes.push({ key: 'lineHeight', value: 1.0, schemaId: activeSchema.id });
-          changes.push({ key: 'characterSpacing', value: 0, schemaId: activeSchema.id });
-          changes.push({ key: 'strikethrough', value: false, schemaId: activeSchema.id });
-          changes.push({ key: 'underline', value: false, schemaId: activeSchema.id });
-          changes.push({ key: 'alignment', value: 'left', schemaId: activeSchema.id });
-          changes.push({ key: 'verticalAlignment', value: 'top', schemaId: activeSchema.id });
-          changes.push({ key: 'otherTest', value: 'top', schemaId: activeSchema.id });
-          changes.push({ key: 'useDynamicFontSize', value: true, schemaId: activeSchema.id });
+        if (key === 'fillable') {
+          if(value === true) {
+            changes.push({ key: 'content', value: 'Fillable Field', schemaId: activeSchema.id });
+            changes.push({ key: 'required', value: false, schemaId: activeSchema.id });
+            changes.push({ key: 'rotate', value: 0, schemaId: activeSchema.id });
+            changes.push({ key: 'opacity', value: 1.0, schemaId: activeSchema.id });
+            changes.push({ key: 'fontName', value: 'Roboto', schemaId: activeSchema.id });
+            changes.push({ key: 'lineHeight', value: 1.0, schemaId: activeSchema.id });
+            changes.push({ key: 'characterSpacing', value: 0, schemaId: activeSchema.id });
+            changes.push({ key: 'strikethrough', value: false, schemaId: activeSchema.id });
+            changes.push({ key: 'underline', value: false, schemaId: activeSchema.id });
+            changes.push({ key: 'alignment', value: 'left', schemaId: activeSchema.id });
+            changes.push({ key: 'verticalAlignment', value: 'top', schemaId: activeSchema.id });
+            changes.push({ key: 'otherTest', value: 'top', schemaId: activeSchema.id });
+            changes.push({ key: 'useDynamicFontSize', value: true, schemaId: activeSchema.id });
+          } else {
+            changes.push({ key: 'content', value: 'Type Something...', schemaId: activeSchema.id });
+          }
         }
 
         changes.push({ key, value, schemaId: activeSchema.id });

@@ -282,7 +282,13 @@ export const mapVerticalAlignToFlex = (verticalAlignmentValue: string | undefine
   return 'flex-start';
 };
 
-const getBackgroundColor = (value: string, schema: { backgroundColor?: string }) => {
-  if (!value || !schema.backgroundColor) return 'transparent';
+const getBackgroundColor = (value: string, schema: { backgroundColor?: string; fillable?: boolean }) => {
+  if (!value || !schema.backgroundColor) {
+    if (schema.fillable) {
+      return '#d8eefc';
+    } else {
+      return 'transparent';
+    }
+  }
   return schema.backgroundColor;
 };
