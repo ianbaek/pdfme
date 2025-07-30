@@ -3,6 +3,8 @@ import { cmyk, degrees, degreesToRadians, rgb, Color } from '@pdfme/pdf-lib';
 import { Schema, mm2pt, Mode, isHexValid, ColorType } from '@pdfme/common';
 import { IconNode } from 'lucide';
 import { getDynamicHeightsForTable as _getDynamicHeightsForTable } from './tables/dynamicTemplate.js';
+import { getDynamicHeightsForCustomTable as _getDynamicHeightsForCustomTable } from './custom_tables/dynamicTemplate.js';
+
 export const convertForPdfLayoutProps = ({
   schema,
   pageHeight,
@@ -62,6 +64,7 @@ export const rotatePoint = (
 };
 
 export const getDynamicHeightsForTable = _getDynamicHeightsForTable;
+export const getDynamicHeightsForCustomTable = _getDynamicHeightsForCustomTable;
 
 // ----------------------------------------
 

@@ -8,6 +8,7 @@ import {
   replacePlaceholders,
 } from '@pdfme/common';
 import { getDynamicHeightsForTable } from '@pdfme/schemas/utils';
+import { getDynamicHeightsForCustomTable } from '@pdfme/schemas/utils';
 import UnitPager from './UnitPager.js';
 import Root from './Root.js';
 import StaticSchema from './StaticSchema.js';
@@ -64,8 +65,10 @@ const Preview = ({
       _cache,
       getDynamicHeights: (value, args) => {
         switch (args.schema.type) {
-          case 'table':
-            return getDynamicHeightsForTable(value, args);
+            case 'table':
+              return getDynamicHeightsForTable(value, args);
+            case 'customTable':
+              return getDynamicHeightsForCustomTable(value, args);
           default:
             return Promise.resolve([args.schema.height]);
         }
