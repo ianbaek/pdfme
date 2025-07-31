@@ -6,6 +6,7 @@ import { getBodyWithRange } from './helper.js';
 import cell from './cell.js';
 import { Row } from './classes.js';
 
+const columnButtonSize = 24;
 const buttonSize = 30;
 
 function createButton(options: {
@@ -22,6 +23,8 @@ function createButton(options: {
   button.style.height = `${options.height}px`;
   button.style.position = 'absolute';
   button.style.top = options.top;
+  button.style.cursor = 'pointer';
+  
   if (options.left !== undefined) {
     button.style.left = options.left;
   }
@@ -421,10 +424,10 @@ export const uiRender = async (arg: UIRenderProps<MultiTableSchema>) => {
           offsetX += columnWidth;
           
           const removeColumnButton = createButton({
-            width: buttonSize,
-            height: buttonSize,
+            width: columnButtonSize,
+            height: columnButtonSize,
             top: `${currentY}mm`,
-            left: `${offsetX - px2mm(buttonSize)}mm`,
+            left: `${offsetX - px2mm(columnButtonSize)}mm`,
             text: '-',
             onClick: () => {
               const totalWidthMinusRemoved = singleTable.headWidthPercentages.reduce(
@@ -502,10 +505,10 @@ export const uiRender = async (arg: UIRenderProps<MultiTableSchema>) => {
         // Add column buttons for this table in designer mode
         if (mode === 'designer' && onChange) {
         const addColumnButton = createButton({
-          width: buttonSize,
-          height: buttonSize,
+          width: columnButtonSize,
+          height: columnButtonSize,
           top: `${currentY}mm`,
-          right: `-${buttonSize}px`, // Move closer to columns
+          right: `-${columnButtonSize}px`, // Move closer to columns
           text: '+',
           onClick: (e) => {
             e.preventDefault();
