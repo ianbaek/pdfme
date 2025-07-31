@@ -89,6 +89,7 @@ const drawBorder = (
   rowIndex: number,
   rowsLength: number,
   arg: UIRenderProps<MultiTableSchema>,
+  isLastTable: boolean = true,
 ) => {
   const isFirstColumn = colIndex === 0;
   const isLastColumn = colIndex === Object.values(row.cells).length - 1;
@@ -98,11 +99,13 @@ const drawBorder = (
     setBorder(div, 'Top', arg);
     if (isFirstColumn) setBorder(div, 'Left', arg);
     if (isLastColumn) setBorder(div, 'Right', arg);
-    if (isLastRow) setBorder(div, 'Bottom', arg);
   } else {
     if (isFirstColumn) setBorder(div, 'Left', arg);
     if (isLastColumn) setBorder(div, 'Right', arg);
-    if (isLastRow) setBorder(div, 'Bottom', arg);
+    // Draw bottom border only for last table in group
+    if (isLastRow && isLastTable) {
+      setBorder(div, 'Bottom', arg);
+    }
   }
 };
 
@@ -114,8 +117,9 @@ const renderRowUi = (args: {
   offsetY?: number;
   tableIndex?: number;
   tables?: SingleTableSchema[];
+  isLastTable?: boolean;
 }) => {
-  const { rows, arg, onChangeEditingPosition, offsetY = 0, editingPosition, tableIndex, tables } = args;
+  const { rows, arg, onChangeEditingPosition, offsetY = 0, editingPosition, tableIndex, tables, isLastTable = true } = args;
 
   let rowOffsetY = offsetY;
   rows.forEach((row, rowIndex) => {
@@ -130,7 +134,7 @@ const renderRowUi = (args: {
       div.style.height = `${cell.height}mm`;
       div.style.boxSizing = 'border-box';
 
-      drawBorder(div, row, colIndex, rowIndex, rows.length, arg);
+      drawBorder(div, row, colIndex, rowIndex, rows.length, arg, isLastTable);
 
       div.style.cursor =
         arg.mode === 'designer' || (arg.mode === 'form' && section === 'body') ? 'text' : 'default';
@@ -299,6 +303,9 @@ export const uiRender = async (arg: UIRenderProps<MultiTableSchema>) => {
         void uiRender(arg);
       };
 
+      // Determine if this is the first or last table in the group
+      const isLastTable = tableIndex === tables.length - 1;
+
       if (showHead) {
         renderRowUi({
           rows: table.head,
@@ -308,6 +315,7 @@ export const uiRender = async (arg: UIRenderProps<MultiTableSchema>) => {
           offsetY: currentY,
           tableIndex,
           tables,
+          isLastTable,
         });
       }
 
@@ -322,6 +330,7 @@ export const uiRender = async (arg: UIRenderProps<MultiTableSchema>) => {
         offsetY: bodyOffsetY,
         tableIndex,
         tables,
+        isLastTable,
       });
 
       // Add column resize handles for each table in designer mode

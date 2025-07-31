@@ -1,7 +1,7 @@
 import type { MultiTableSchema, CellContent, CellImageSchema, CellSchema, SingleTableSchema } from './types.js';
 import type { PDFRenderProps, Schema, BasePdf, CommonOptions } from '@pdfme/common';
 import { Cell, Table, Row, Column } from './classes.js';
-import { rectangle } from '../shapes/rectAndEllipse.js';
+import line from '../shapes/line.js';
 import cellSchema from './cell.js';
 import { getBodyWithRange } from './helper.js';
 import { createSingleTable } from './tableHelper.js';
@@ -20,7 +20,7 @@ interface CreateTableArgs {
 
 type Pos = { x: number; y: number };
 
-const rectanglePdfRender = rectangle.pdf;
+const linePdfRender = line.pdf;
 const cellBasePdfRender = cellSchema.pdf;
 const imagePdfRender = imageSchema.pdf;
 
@@ -133,27 +133,81 @@ async function drawTableBorder(
   table: Table,
   startPos: Pos,
   cursor: Pos,
+  isLastTable: boolean = true,
 ) {
   const lineWidth = table.settings.tableLineWidth;
   const lineColor = table.settings.tableLineColor;
   if (!lineWidth || !lineColor) return;
-  await rectanglePdfRender({
+  
+  // For multi-table groups, we need to handle borders differently
+  // to avoid double borders between consecutive tables
+  const borderWidth = table.getWidth();
+  const borderHeight = cursor.y - startPos.y;
+  
+  // Draw top border only for first table in group
+  await linePdfRender({
     ...arg,
     schema: {
       name: '',
-      type: 'rectangle',
-      borderWidth: lineWidth,
-      borderColor: lineColor,
-      color: '',
+      type: 'line',
       position: { x: startPos.x, y: startPos.y },
-      width: table.getWidth(),
-      height: cursor.y - startPos.y,
+      width: borderWidth,
+      height: lineWidth,
+      color: lineColor,
       readOnly: true,
     },
   });
+  
+  // Draw left border
+  await linePdfRender({
+    ...arg,
+    schema: {
+      name: '',
+      type: 'line',
+      position: { x: startPos.x, y: startPos.y },
+      width: lineWidth,
+      height: borderHeight,
+      color: lineColor,
+      readOnly: true,
+    },
+  });
+  
+  // Draw right border
+  await linePdfRender({
+    ...arg,
+    schema: {
+      name: '',
+      type: 'line',
+      position: { x: startPos.x + borderWidth - lineWidth, y: startPos.y },
+      width: lineWidth,
+      height: borderHeight,
+      color: lineColor,
+      readOnly: true,
+    },
+  });
+  
+  // Draw bottom border only for last table in group
+  if (isLastTable) {
+    await linePdfRender({
+      ...arg,
+      schema: {
+        name: '',
+        type: 'line',
+        position: { x: startPos.x, y: startPos.y + borderHeight - lineWidth },
+        width: borderWidth,
+        height: lineWidth,
+        color: lineColor,
+        readOnly: true,
+      },
+    });
+  }
 }
 
-async function drawTable(arg: PDFRenderProps<MultiTableSchema>, table: Table): Promise<void> {
+async function drawTable(
+  arg: PDFRenderProps<MultiTableSchema>, 
+  table: Table, 
+  isLastTable: boolean = true
+): Promise<void> {
   const settings = table.settings;
   const startY = settings.startY;
   const margin = settings.margin;
@@ -171,7 +225,7 @@ async function drawTable(arg: PDFRenderProps<MultiTableSchema>, table: Table): P
     await drawRow(arg, table, row, cursor, table.columns);
   }
 
-  await drawTableBorder(arg, table, startPos, cursor);
+  await drawTableBorder(arg, table, startPos, cursor, isLastTable);
 }
 
 // Convert single table schema to table schema for rendering
@@ -223,8 +277,9 @@ export const pdfRender = async (arg: PDFRenderProps<MultiTableSchema>) => {
       // Set table position
       table.settings.startY = currentY;
       
-      // Render table
-      await drawTable(arg, table);
+      // Render table with border control
+      const isLastTable = tables.indexOf(singleTable) === tables.length - 1;
+      await drawTable(arg, table, isLastTable);
       
       // Move to next table position
       const tableHeight = table.getHeight();
