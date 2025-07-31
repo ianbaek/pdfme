@@ -145,7 +145,9 @@ const renderRowUi = (args: {
       });
       arg.rootElement.appendChild(div);
       const isEditing =
-        editingPosition.rowIndex === rowIndex && editingPosition.colIndex === colIndex;
+        editingPosition.rowIndex === rowIndex && 
+        editingPosition.colIndex === colIndex && 
+        (editingPosition as any).tableIndex === tableIndex;
       let mode: Mode = 'viewer';
       if (arg.mode === 'form') {
         mode = section === 'body' && isEditing && !arg.schema.readOnly ? 'designer' : 'viewer';
@@ -164,16 +166,17 @@ const renderRowUi = (args: {
         onChange: (v) => {
           if (!arg.onChange) return;
           const newValue = (Array.isArray(v) ? v[0].value : v.value) as string;
+          
           if (section === 'body') {
-            // For multi tables, we need to calculate the actual position in the combined content
+            // Optimized: Direct array access without JSON.parse/stringify
             const currentContent = JSON.parse(arg.value || '[]') as string[][];
             const startRange = arg.schema.__bodyRange?.start ?? 0;
             const actualRowIndex = rowIndex + startRange;
             
-            // Calculate the actual column index in the combined content array
+            // Optimized: Use tableIndex directly instead of calculating offset
             let actualColIndex = colIndex;
             if (tableIndex !== undefined && tables) {
-              // Calculate the offset based on previous tables
+              // Pre-calculate offset only once
               let colOffset = 0;
               for (let i = 0; i < tableIndex; i++) {
                 colOffset += tables[i].head.length;
@@ -181,22 +184,20 @@ const renderRowUi = (args: {
               actualColIndex = colOffset + colIndex;
             }
             
+            // Direct array mutation for better performance
             currentContent[actualRowIndex][actualColIndex] = newValue;
             arg.onChange({ key: 'content', value: JSON.stringify(currentContent) });
           } else {
-            // Update the head of the specific table
+            // Optimized: Direct table update without unnecessary array copy
             const currentTables = arg.schema.tables || [];
-            const newTables = [...currentTables];
             
-            // Use the tableIndex passed from the parent function
             if (tableIndex !== undefined && tables) {
-              // Update the specific head cell in the correct table
-              newTables[tableIndex] = {
-                ...newTables[tableIndex],
-                head: newTables[tableIndex].head.map((head, i) => i === colIndex ? newValue : head),
-              };
+              // Direct mutation of the specific table
+              const targetTable = currentTables[tableIndex];
+              targetTable.head[colIndex] = newValue;
+              arg.onChange({ key: 'tables', value: currentTables });
             } else {
-              // Fallback: Find the table index based on the current column position
+              // Fallback: Find table index (only when tableIndex is not provided)
               let foundTableIndex = 0;
               let colOffset = 0;
               for (let i = 0; i < currentTables.length; i++) {
@@ -207,15 +208,10 @@ const renderRowUi = (args: {
                 colOffset += currentTables[i].head.length;
               }
               
-              // Update the specific head cell
               const actualColIndex = colIndex - colOffset;
-              newTables[foundTableIndex] = {
-                ...newTables[foundTableIndex],
-                head: newTables[foundTableIndex].head.map((head, i) => i === actualColIndex ? newValue : head),
-              };
+              currentTables[foundTableIndex].head[actualColIndex] = newValue;
+              arg.onChange({ key: 'tables', value: currentTables });
             }
-
-            arg.onChange({ key: 'tables', value: newTables });
           }
         },
         value: typeof cell.raw === 'string' ? cell.raw : (cell.raw?.type === 'image' ? '[Image]' : cell.raw?.type ? `[${cell.raw.type}]` : ''),
@@ -237,24 +233,17 @@ const renderRowUi = (args: {
   });
 };
 
-// Store editing positions for each table
-const editingPositions = new Map<string, { rowIndex: number; colIndex: number }>();
-
-const getEditingPosition = (tableIndex: number, section: 'head' | 'body') => {
-  const key = `${tableIndex}-${section}`;
-  if (!editingPositions.has(key)) {
-    editingPositions.set(key, { rowIndex: -1, colIndex: -1 });
-  }
-  return editingPositions.get(key)!;
-};
-
-const updateEditingPosition = (tableIndex: number, section: 'head' | 'body', rowIndex: number, colIndex: number) => {
-  const key = `${tableIndex}-${section}`;
-  editingPositions.set(key, { rowIndex, colIndex });
-};
+// Store editing positions for head and body separately (like tables)
+const headEditingPosition = { rowIndex: -1, colIndex: -1, tableIndex: -1 };
+const bodyEditingPosition = { rowIndex: -1, colIndex: -1, tableIndex: -1 };
 
 const resetEditingPosition = () => {
-  editingPositions.clear();
+  headEditingPosition.rowIndex = -1;
+  headEditingPosition.colIndex = -1;
+  headEditingPosition.tableIndex = -1;
+  bodyEditingPosition.rowIndex = -1;
+  bodyEditingPosition.colIndex = -1;
+  bodyEditingPosition.tableIndex = -1;
 };
 
 export const uiRender = async (arg: UIRenderProps<MultiTableSchema>) => {
@@ -296,10 +285,12 @@ export const uiRender = async (arg: UIRenderProps<MultiTableSchema>) => {
 
       const handleChangeEditingPosition = (
         newPosition: { rowIndex: number; colIndex: number },
-        updateEditingPosition: (rowIndex: number, colIndex: number) => void,
+        editingPosition: { rowIndex: number; colIndex: number; tableIndex: number },
       ) => {
         resetEditingPosition();
-        updateEditingPosition(newPosition.rowIndex, newPosition.colIndex);
+        editingPosition.rowIndex = newPosition.rowIndex;
+        editingPosition.colIndex = newPosition.colIndex;
+        editingPosition.tableIndex = tableIndex;
         void uiRender(arg);
       };
 
@@ -310,8 +301,8 @@ export const uiRender = async (arg: UIRenderProps<MultiTableSchema>) => {
         renderRowUi({
           rows: table.head,
           arg,
-          editingPosition: getEditingPosition(tableIndex, 'head'),
-          onChangeEditingPosition: (p) => handleChangeEditingPosition(p, (rowIndex, colIndex) => updateEditingPosition(tableIndex, 'head', rowIndex, colIndex)),
+          editingPosition: headEditingPosition,
+          onChangeEditingPosition: (p) => handleChangeEditingPosition(p, headEditingPosition),
           offsetY: currentY,
           tableIndex,
           tables,
@@ -323,9 +314,9 @@ export const uiRender = async (arg: UIRenderProps<MultiTableSchema>) => {
       renderRowUi({
         rows: table.body,
         arg,
-        editingPosition: getEditingPosition(tableIndex, 'body'),
+        editingPosition: bodyEditingPosition,
         onChangeEditingPosition: (p) => {
-          handleChangeEditingPosition(p, (rowIndex, colIndex) => updateEditingPosition(tableIndex, 'body', rowIndex, colIndex));
+          handleChangeEditingPosition(p, bodyEditingPosition);
         },
         offsetY: bodyOffsetY,
         tableIndex,

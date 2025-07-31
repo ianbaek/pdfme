@@ -78,12 +78,12 @@ export const propPanel: PropPanel<MultiTableSchema> = {
     width: 150,
     height: 20,
     content: JSON.stringify([
-      ['Alice', 'Seoul', 'Software Engineer', '25', 'Female'],
+      ['Alice', 'Seoul', 'Worker', '25', 'Female'],
     ]),
     tables: [
       {
         showHead: true,
-        head: ['Name', 'City', 'Description'],
+        head: ['Name', 'City', 'Desc'],
         headWidthPercentages: [30, 30, 40],
       },
       {
