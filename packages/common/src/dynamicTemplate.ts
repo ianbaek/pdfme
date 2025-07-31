@@ -239,7 +239,7 @@ function createNewTemplate(pages: LayoutNode[], basePdf: BlankPdf): Template {
         // Currently, __bodyRange exists for table schemas, but if we make it more abstract,
         // it could be used for other schemas as well to render schemas that have been split by page breaks, starting from the middle.
         schema.__bodyRange = {
-          start: Math.max(start - 1, 0),
+          start: Math.max(schema.type === 'multiTable' ? start : (start - 1), 0),
           end:
             start + (schema.type === 'multiTable' ? sameNameSchemas.length : sameNameSchemas.length - 1),
         };
