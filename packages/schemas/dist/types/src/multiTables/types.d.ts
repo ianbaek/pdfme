@@ -1,0 +1,98 @@
+import type { ALIGNMENT, VERTICAL_ALIGNMENT } from '../text/types.js';
+import type { Schema } from '@pdfme/common';
+import type { BarcodeSchema } from '../barcodes/types.js';
+export type Spacing = {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+};
+type BorderInsets = Spacing;
+type BoxDimensions = Spacing;
+export interface CellStyle {
+    fontName?: string;
+    alignment: ALIGNMENT;
+    verticalAlignment: VERTICAL_ALIGNMENT;
+    fontSize: number;
+    lineHeight: number;
+    characterSpacing: number;
+    fontColor: string;
+    backgroundColor: string;
+    borderColor: string;
+    borderWidth: BoxDimensions;
+    padding: BoxDimensions;
+}
+export type CellSchema = Schema & CellStyle;
+export interface CellImageSchema extends Schema {
+    type: 'image';
+    content: string;
+    aspectRatio?: number;
+}
+export type CellContent = string | BarcodeSchema | CellImageSchema;
+export interface SingleTableSchema {
+    showHead: boolean;
+    head: string[];
+    headWidthPercentages: number[];
+}
+export interface MultiTableSchema extends Schema {
+    tables: SingleTableSchema[];
+    tableStyles: {
+        borderColor: string;
+        borderWidth: number;
+    };
+    headStyles: CellStyle;
+    bodyStyles: CellStyle & {
+        alternateBackgroundColor: string;
+    };
+    columnStyles: {
+        alignment?: {
+            [colIndex: number]: ALIGNMENT;
+        };
+    };
+    tableGroupSpacing: number;
+}
+export interface Styles {
+    fontName: string | undefined;
+    backgroundColor: string;
+    textColor: string;
+    lineHeight: number;
+    characterSpacing: number;
+    alignment: 'left' | 'center' | 'right' | 'justify';
+    verticalAlignment: 'top' | 'middle' | 'bottom';
+    fontSize: number;
+    cellPadding: Spacing;
+    lineColor: string;
+    lineWidth: BorderInsets;
+    cellWidth: number;
+    minCellHeight: number;
+    minCellWidth: number;
+}
+export interface TableInput {
+    settings: Settings;
+    styles: StylesProps;
+    content: ContentInput;
+}
+export interface ContentInput {
+    body: CellContent[][];
+    head: CellContent[][];
+    columns: number[];
+}
+export interface Settings {
+    startY: number;
+    margin: Spacing;
+    tableWidth: number;
+    showHead: boolean;
+    tableLineWidth: number;
+    tableLineColor: string;
+}
+export interface StylesProps {
+    styles: Partial<Styles>;
+    headStyles: Partial<Styles>;
+    bodyStyles: Partial<Styles>;
+    alternateRowStyles: Partial<Styles>;
+    columnStyles: {
+        [key: string]: Partial<Styles>;
+    };
+}
+export type Section = 'head' | 'body';
+export {};
