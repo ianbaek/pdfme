@@ -9,7 +9,7 @@ import {
   cloneDeep,
 } from '@pdfme/common';
 import { getDynamicHeightsForTable } from '@pdfme/schemas';
-import { getDynamicHeightsForCustomTable } from '@pdfme/schemas';
+import { getDynamicHeightsForMultiTable } from '@pdfme/schemas';
 import {
   insertPage,
   preprocessing,
@@ -50,8 +50,8 @@ const generate = async (props: GenerateProps) => {
         switch (args.schema.type) {
           case 'table':
             return getDynamicHeightsForTable(value, args);
-          case 'customTable':
-            return getDynamicHeightsForCustomTable(value, args);
+          case 'multiTable':
+            return getDynamicHeightsForMultiTable(value, args);
           default:
             return Promise.resolve([args.schema.height]);
         }

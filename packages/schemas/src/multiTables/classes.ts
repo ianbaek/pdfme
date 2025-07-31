@@ -152,7 +152,6 @@ export class Table {
     _cache: Map<string | number, FontKitFont>;
   }) {
     const { input, content, font, _cache } = arg;
-    console.log('create table', 'input', input, 'content', content);
     const table = new Table(input, content);
 
     await calculateWidths({ table, font, _cache });

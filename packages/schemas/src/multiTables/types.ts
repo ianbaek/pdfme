@@ -30,10 +30,16 @@ export interface CellImageSchema extends Schema {
 
 export type CellContent = string | BarcodeSchema | CellImageSchema;
 
-export interface CustomTableSchema extends Schema {
+// Individual table schema
+export interface SingleTableSchema {
   showHead: boolean;
   head: string[];
   headWidthPercentages: number[];
+}
+
+// Multi table schema that contains multiple tables
+export interface MultiTableSchema extends Schema {
+  tables: SingleTableSchema[]; // Array of multiple tables
 
   tableStyles: {
     borderColor: string;
@@ -44,6 +50,7 @@ export interface CustomTableSchema extends Schema {
   columnStyles: {
     alignment?: { [colIndex: number]: ALIGNMENT };
   };
+  tableGroupSpacing: number; // Spacing between table groups
 }
 
 export interface Styles {

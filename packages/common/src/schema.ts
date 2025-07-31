@@ -90,6 +90,7 @@ export const Dict = z.object({
   'schemas.table.headStyle': z.string(),
   'schemas.table.bodyStyle': z.string(),
   'schemas.table.columnStyle': z.string(),
+  'schemas.multiTable.tableGroupSpacing': z.string(),
 
   'schemas.date.format': z.string(),
   'schemas.date.locale': z.string(),

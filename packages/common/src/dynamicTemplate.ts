@@ -240,7 +240,8 @@ function createNewTemplate(pages: LayoutNode[], basePdf: BlankPdf): Template {
         // it could be used for other schemas as well to render schemas that have been split by page breaks, starting from the middle.
         schema.__bodyRange = {
           start: Math.max(start - 1, 0),
-          end: start + sameNameSchemas.length - 1,
+          end:
+            start + (schema.type === 'multiTable' ? sameNameSchemas.length : sameNameSchemas.length - 1),
         };
 
         // Currently, this is used to determine whether to display the header when a table is split.

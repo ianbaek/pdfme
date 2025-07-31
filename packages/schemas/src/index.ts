@@ -5,7 +5,7 @@ import svg from './graphics/svg.js';
 import barcodes from './barcodes/index.js';
 import line from './shapes/line.js';
 import table from './tables/index.js';
-import customTable from './custom_tables/index.js';
+import multiTable from './multiTables/index.js';
 import { rectangle, ellipse } from './shapes/rectAndEllipse.js';
 import dateTime from './date/dateTime.js';
 import date from './date/date.js';
@@ -24,7 +24,7 @@ export {
   image,
   svg,
   table,
-  customTable,
+  multiTable,
   barcodes,
   line,
   rectangle,
@@ -39,4 +39,4 @@ export {
 
 // Export utility functions
 export { getDynamicHeightsForTable } from './tables/dynamicTemplate.js';
-export { getDynamicHeightsForCustomTable } from './custom_tables/dynamicTemplate.js';
+export { getDynamicHeightsForMultiTable } from './multiTables/dynamicTemplate.js';

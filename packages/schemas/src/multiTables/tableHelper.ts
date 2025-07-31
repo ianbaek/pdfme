@@ -9,7 +9,7 @@ import {
 } from '@pdfme/common';
 import type { Font as FontKitFont } from 'fontkit';
 import type {
-  CustomTableSchema,
+  MultiTableSchema,
   CellStyle,
   Styles,
   Spacing,
@@ -166,8 +166,14 @@ function mapCellStyle(style: CellStyle): Partial<Styles> {
   };
 }
 
-function getTableOptions(schema: CustomTableSchema, body: CellContent[][]): UserOptions {
-  const columnStylesWidth = schema.headWidthPercentages.reduce(
+function getTableOptions(schema: MultiTableSchema, body: CellContent[][], tableIndex: number = 0): UserOptions {
+  // For multi tables, we need to get the specific table's configuration
+  const targetTable = schema.tables?.[tableIndex];
+  if (!targetTable) {
+    throw new Error(`MultiTableSchema must have a table at index ${tableIndex}`);
+  }
+
+  const columnStylesWidth = targetTable.headWidthPercentages.reduce(
     (acc, cur, i) => ({ ...acc, [i]: { cellWidth: schema.width * (cur / 100) } }),
     {} as Record<number, Partial<Styles>>,
   );
@@ -190,12 +196,10 @@ function getTableOptions(schema: CustomTableSchema, body: CellContent[][]): User
     {} as Record<number, Partial<Styles>>,
   );
 
-  console.log('getTableOptions', 'columnStylesWidth', columnStylesWidth, 'columnStylesAlignment');
-
   return {
-    head: [schema.head.map(h => h as CellContent)],
+    head: [targetTable.head.map(h => h as CellContent)],
     body,
-    showHead: schema.showHead,
+    showHead: targetTable.showHead,
     startY: schema.position.y,
     tableWidth: schema.width,
     tableLineColor: schema.tableStyles.borderColor,
@@ -237,8 +241,8 @@ function parseContent4Input(options: UserOptions) {
   return { columns, head, body };
 }
 
-function parseInput(schema: CustomTableSchema, body: CellContent[][]): TableInput {
-  const options = getTableOptions(schema, body);
+function parseInput(schema: MultiTableSchema, body: CellContent[][], tableIndex: number = 0): TableInput {
+  const options = getTableOptions(schema, body, tableIndex);
   const styles = parseStyles(options);
   const settings = {
     startY: options.startY,
@@ -254,7 +258,7 @@ function parseInput(schema: CustomTableSchema, body: CellContent[][]): TableInpu
   return { content, styles, settings };
 }
 
-export function createSingleTable(body: CellContent[][], args: CreateTableArgs) {
+export function createSingleTable(body: CellContent[][], args: CreateTableArgs, tableIndex: number = 0) {
   const { options, _cache, basePdf } = args;
   if (!isBlankPdf(basePdf)) {
     console.warn(
@@ -266,16 +270,20 @@ export function createSingleTable(body: CellContent[][], args: CreateTableArgs) 
     );
   }
 
-  const schema = cloneDeep(args.schema) as CustomTableSchema;
+  const schema = cloneDeep(args.schema) as MultiTableSchema;
   const { start } = schema.__bodyRange || { start: 0 };
   if (start % 2 === 1) {
     const alternateBackgroundColor = schema.bodyStyles.alternateBackgroundColor;
     schema.bodyStyles.alternateBackgroundColor = schema.bodyStyles.backgroundColor;
     schema.bodyStyles.backgroundColor = alternateBackgroundColor;
   }
-  schema.showHead = schema.showHead === false ? false : !schema.__isSplit;
+  
+  // For multi tables, we need to get the specific table's showHead setting
+  const targetTable = schema.tables?.[tableIndex];
+  const showHead = targetTable?.showHead ?? true;
+  schema.showHead = showHead === false ? false : !schema.__isSplit;
 
-  const input = parseInput(schema, body);
+  const input = parseInput(schema, body, tableIndex);
 
   const font = options.font || getDefaultFont();
 

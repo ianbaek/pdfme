@@ -1,4 +1,4 @@
-import type { CustomTableSchema, CellContent, CellImageSchema, CellSchema } from './types.js';
+import type { MultiTableSchema, CellContent, CellImageSchema, CellSchema, SingleTableSchema } from './types.js';
 import type { PDFRenderProps, Schema, BasePdf, CommonOptions } from '@pdfme/common';
 import { Cell, Table, Row, Column } from './classes.js';
 import { rectangle } from '../shapes/rectAndEllipse.js';
@@ -24,7 +24,7 @@ const rectanglePdfRender = rectangle.pdf;
 const cellBasePdfRender = cellSchema.pdf;
 const imagePdfRender = imageSchema.pdf;
 
-async function drawCell(arg: PDFRenderProps<CustomTableSchema>, cellInfo: Cell) {
+async function drawCell(arg: PDFRenderProps<MultiTableSchema>, cellInfo: Cell) {
   const cellContent = cellInfo.raw;
   const cellPosition = { x: cellInfo.x, y: cellInfo.y };
   const cellDimensions = { width: cellInfo.width, height: cellInfo.height };
@@ -104,7 +104,7 @@ async function drawCell(arg: PDFRenderProps<CustomTableSchema>, cellInfo: Cell) 
 }
 
 async function drawRow(
-  arg: PDFRenderProps<CustomTableSchema>,
+  arg: PDFRenderProps<MultiTableSchema>,
   table: Table,
   row: Row,
   cursor: Pos,
@@ -129,7 +129,7 @@ async function drawRow(
 }
 
 async function drawTableBorder(
-  arg: PDFRenderProps<CustomTableSchema>,
+  arg: PDFRenderProps<MultiTableSchema>,
   table: Table,
   startPos: Pos,
   cursor: Pos,
@@ -153,7 +153,7 @@ async function drawTableBorder(
   });
 }
 
-async function drawTable(arg: PDFRenderProps<CustomTableSchema>, table: Table): Promise<void> {
+async function drawTable(arg: PDFRenderProps<MultiTableSchema>, table: Table): Promise<void> {
   const settings = table.settings;
   const startY = settings.startY;
   const margin = settings.margin;
@@ -174,22 +174,66 @@ async function drawTable(arg: PDFRenderProps<CustomTableSchema>, table: Table): 
   await drawTableBorder(arg, table, startPos, cursor);
 }
 
-export const pdfRender = async (arg: PDFRenderProps<CustomTableSchema>) => {
+// Convert single table schema to table schema for rendering
+function convertSingleTableToTableSchema(singleTable: SingleTableSchema, multiTableSchema: MultiTableSchema) {
+  return {
+    ...multiTableSchema,
+    showHead: singleTable.showHead,
+    head: singleTable.head,
+    headWidthPercentages: singleTable.headWidthPercentages,
+  };
+}
+
+export const pdfRender = async (arg: PDFRenderProps<MultiTableSchema>) => {
   const { value, schema, basePdf, options, _cache } = arg;
 
-  const body = getBodyWithRange(
+  // Get content data
+  const content = getBodyWithRange(
     typeof value !== 'string' ? (value ? JSON.stringify(value) : '[]') : value || '[]',
     schema.__bodyRange,
-  );
+  ) as CellContent[][];
 
-  const createTableArgs: CreateTableArgs = {
-    schema,
-    basePdf,
-    options,
-    _cache,
-  };
+  const tables = schema.tables || [];
+  let currentY = schema.position.y;
+  const tableGroupSpacing = schema.tableGroupSpacing || 5; // Spacing between table groups
 
-  const table = await createSingleTable(body as CellContent[][], createTableArgs);
+  // For each row in content data, render all tables
+  for (let rowIndex = 0; rowIndex < content.length; rowIndex++) {
+    const rowData = content[rowIndex];
+    
+    // Split row data for each table based on their column counts
+    let dataIndex = 0;
+    for (const singleTable of tables) {
+      const columnCount = singleTable.head.length;
+      const tableRowData = rowData.slice(dataIndex, dataIndex + columnCount);
+      
+      // Convert single table to table schema for rendering
+      const tableSchema = convertSingleTableToTableSchema(singleTable, schema);
+      
+      const createTableArgs: CreateTableArgs = {
+        schema: tableSchema,
+        basePdf,
+        options,
+        _cache,
+      };
 
-  await drawTable(arg, table);
+      // Create table with single row data
+      const table = await createSingleTable([tableRowData], createTableArgs, tables.indexOf(singleTable));
+      
+      // Set table position
+      table.settings.startY = currentY;
+      
+      // Render table
+      await drawTable(arg, table);
+      
+      // Move to next table position
+      const tableHeight = table.getHeight();
+      currentY += tableHeight; // No spacing between tables in the same group
+      
+      dataIndex += columnCount;
+    }
+    
+    // Add spacing between table groups
+    currentY += tableGroupSpacing;
+  }
 };

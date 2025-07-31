@@ -8,7 +8,7 @@ import {
   replacePlaceholders,
 } from '@pdfme/common';
 import { getDynamicHeightsForTable } from '@pdfme/schemas/utils';
-import { getDynamicHeightsForCustomTable } from '@pdfme/schemas/utils';
+import { getDynamicHeightsForMultiTable } from '@pdfme/schemas/utils';
 import UnitPager from './UnitPager.js';
 import Root from './Root.js';
 import StaticSchema from './StaticSchema.js';
@@ -67,8 +67,8 @@ const Preview = ({
         switch (args.schema.type) {
             case 'table':
               return getDynamicHeightsForTable(value, args);
-            case 'customTable':
-              return getDynamicHeightsForCustomTable(value, args);
+            case 'multiTable':
+              return getDynamicHeightsForMultiTable(value, args);
           default:
             return Promise.resolve([args.schema.height]);
         }
@@ -110,7 +110,7 @@ const Preview = ({
         if (newValue === oldValue) return;
         handleChangeInput({ name: schema.name, value: newValue });
         // TODO Improve this to allow schema types to determine whether the execution of getDynamicTemplate is required.
-        if (schema.type === 'table') isNeedInit = true;
+        if (schema.type === 'table' || schema.type === 'multiTable') isNeedInit = true;
       } else {
         const targetSchema = schemasList[pageCursor].find((s) => s.id === schema.id) as SchemaForUI;
         if (!targetSchema) return;
