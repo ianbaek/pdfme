@@ -20,12 +20,12 @@ import {
   getB64BasePdf,
 } from '../src/index.js';
 
-const sansData = readFileSync(path.join(__dirname, `/assets/fonts/SauceHanSansJP.ttf`));
-const serifData = readFileSync(path.join(__dirname, `/assets/fonts/SauceHanSerifJP.ttf`));
+const sansData = readFileSync(path.join(__dirname, `/assets/fonts/NotoSans-Regular.ttf`));
+const serifData = readFileSync(path.join(__dirname, `/assets/fonts/NotoSerif-Regular.ttf`));
 
 const getSampleFont = (): Font => ({
-  SauceHanSansJP: { fallback: true, data: sansData },
-  SauceHanSerifJP: { data: serifData },
+  NotoSans: { fallback: true, data: sansData },
+  NotoSerif: { data: serifData },
 });
 
 const getTemplate = (): Template => ({
@@ -36,7 +36,7 @@ const getTemplate = (): Template => ({
         name: 'a',
         content: 'a',
         type: 'text',
-        fontName: 'SauceHanSansJP',
+        fontName: 'NotoSans',
         position: { x: 0, y: 0 },
         width: 100,
         height: 100,
@@ -155,13 +155,13 @@ describe('checkGenerateProps', () => {
     expect(() => checkGenerateProps(invalidProps)).toThrow("[@pdfme/common] Invalid argument:\n" +
       "--------------------------\n" +
       "ERROR POSITION: template.schemas\n" +
-      "ERROR MESSAGE: Expected array, received string\n" +
+      "ERROR MESSAGE: Invalid input: expected array, received string\n" +
       "--------------------------\n" +
       "ERROR POSITION: template.basePdf\n" +
       "ERROR MESSAGE: Invalid input\n" +
       "--------------------------\n" +
       "ERROR POSITION: inputs\n" +
-      "ERROR MESSAGE: Required\n" +
+      "ERROR MESSAGE: Invalid input: expected array, received undefined\n" +
       "--------------------------");
   });
 
@@ -177,10 +177,10 @@ describe('checkGenerateProps', () => {
     expect(() => checkGenerateProps(missingSchemaProps)).toThrow("[@pdfme/common] Invalid argument:\n" +
       "--------------------------\n" +
       "ERROR POSITION: template.schemas\n" +
-      "ERROR MESSAGE: Required\n" +
+      "ERROR MESSAGE: Invalid input: expected array, received undefined\n" +
       "--------------------------\n" +
       "ERROR POSITION: inputs\n" +
-      "ERROR MESSAGE: Array must contain at least 1 element(s)\n" +
+      "ERROR MESSAGE: Too small: expected array to have >=1 items\n" +
       "--------------------------");
   });
 
@@ -222,20 +222,14 @@ describe('checkGenerateProps', () => {
 
     expect(() => checkGenerateProps(invalidPluginProps)).toThrow("[@pdfme/common] Invalid argument:\n" +
       "--------------------------\n" +
-      "ERROR POSITION: plugins.invalid.ui\n" +
-      "ERROR MESSAGE: Required\n" +
-      "--------------------------\n" +
-      "ERROR POSITION: plugins.invalid.pdf\n" +
-      "ERROR MESSAGE: Required\n" +
-      "--------------------------\n" +
       "ERROR POSITION: plugins.invalid.propPanel.defaultSchema.type\n" +
-      "ERROR MESSAGE: Required\n" +
+      "ERROR MESSAGE: Invalid input: expected string, received undefined\n" +
       "--------------------------\n" +
       "ERROR POSITION: plugins.missingPanel.propPanel\n" +
-      "ERROR MESSAGE: Required\n" +
+      "ERROR MESSAGE: Invalid input: expected object, received undefined\n" +
       "--------------------------\n" +
       "ERROR POSITION: plugins.missingDefaultSchema.propPanel.defaultSchema\n" +
-      "ERROR MESSAGE: Required\n" +
+      "ERROR MESSAGE: Invalid input: expected object, received undefined\n" +
       "--------------------------");
   });
 
@@ -299,8 +293,8 @@ describe('checkFont test', () => {
 
   test('success test: fontName in Schemas(not fallback font)', () => {
     const getFont = (): Font => ({
-      SauceHanSansJP: { data: sansData },
-      SauceHanSerifJP: { fallback: true, data: serifData },
+      NotoSans: { data: sansData },
+      NotoSerif: { fallback: true, data: serifData },
     });
 
     try {
@@ -313,8 +307,8 @@ describe('checkFont test', () => {
 
   test('fail test: no fallback font', () => {
     const getFont = (): Font => ({
-      SauceHanSansJP: { data: sansData },
-      SauceHanSerifJP: { data: serifData },
+      NotoSans: { data: sansData },
+      NotoSerif: { data: serifData },
     });
 
     try {
@@ -330,8 +324,8 @@ Check this document: https://pdfme.com/docs/custom-fonts#about-font-type`
 
   test('fail test: too many fallback font', () => {
     const getFont = (): Font => ({
-      SauceHanSansJP: { data: sansData, fallback: true },
-      SauceHanSerifJP: { data: serifData, fallback: true },
+      NotoSans: { data: sansData, fallback: true },
+      NotoSerif: { data: serifData, fallback: true },
     });
 
     try {
@@ -354,7 +348,7 @@ Check this document: https://pdfme.com/docs/custom-fonts#about-font-type`
             name: 'a',
             type: 'text',
             content: 'a',
-            fontName: 'SauceHanSansJP2',
+            fontName: 'NotoSans2',
             position: { x: 0, y: 0 },
             width: 100,
             height: 100,
@@ -376,7 +370,7 @@ Check this document: https://pdfme.com/docs/custom-fonts#about-font-type`
       fail();
     } catch (e: any) {
       expect(e.message).toEqual(
-        `[@pdfme/common] SauceHanSansJP2 of template.schemas is not found in font.
+        `[@pdfme/common] NotoSans2 of template.schemas is not found in font.
 Check this document: https://pdfme.com/docs/custom-fonts`
       );
     }
@@ -391,7 +385,7 @@ Check this document: https://pdfme.com/docs/custom-fonts`
             name: 'a',
             type: 'text',
             content: 'a',
-            fontName: 'SauceHanSansJP2',
+            fontName: 'NotoSans2',
             position: { x: 0, y: 0 },
             width: 100,
             height: 100,
@@ -400,7 +394,7 @@ Check this document: https://pdfme.com/docs/custom-fonts`
             name: 'b',
             type: 'text',
             content: 'b',
-            fontName: 'SauceHanSerifJP2',
+            fontName: 'NotoSerif2',
             position: { x: 0, y: 0 },
             width: 100,
             height: 100,
@@ -414,7 +408,7 @@ Check this document: https://pdfme.com/docs/custom-fonts`
       fail();
     } catch (e: any) {
       expect(e.message).toEqual(
-        `[@pdfme/common] SauceHanSansJP2,SauceHanSerifJP2 of template.schemas is not found in font.
+        `[@pdfme/common] NotoSans2,NotoSerif2 of template.schemas is not found in font.
 Check this document: https://pdfme.com/docs/custom-fonts`
       );
     }

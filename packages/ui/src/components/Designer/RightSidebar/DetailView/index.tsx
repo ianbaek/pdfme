@@ -1,5 +1,5 @@
 import { useForm } from 'form-render';
-import React, { useRef, useContext, useState, useEffect } from 'react';
+import React, { useRef, useContext, useState, useEffect, useCallback } from 'react';
 import type {
   Dict,
   ChangeSchemaItem,
@@ -8,15 +8,18 @@ import type {
   PropPanelSchema,
   Schema,
 } from '@pdfme/common';
+import { isBlankPdf } from '@pdfme/common';
 import type { SidebarProps } from '../../../../types.js';
 import { Menu } from 'lucide-react';
 import { I18nContext, PluginsRegistry, OptionsContext } from '../../../../contexts.js';
-import { getSidebarContentHeight, debounce } from '../../../../helper.js';
+import { debounce } from '../../../../helper.js';
+import { DESIGNER_CLASSNAME } from '../../../../constants.js';
 import { theme, Typography, Button, Divider } from 'antd';
 import AlignWidget from './AlignWidget.js';
 import WidgetRenderer from './WidgetRenderer.js';
 import ButtonGroupWidget from './ButtonGroupWidget.js';
 import { InternalNamePath, ValidateErrorEntity } from 'rc-field-form/es/interface.js';
+import { SidebarBody, SidebarFrame, SidebarHeader, SIDEBAR_H_PADDING_PX } from '../layout.js';
 
 // Import FormRender as a default import
 import FormRenderComponent from 'form-render';
@@ -29,6 +32,7 @@ type DetailViewProps = Pick<
   | 'schemas'
   | 'schemasList'
   | 'pageSize'
+  | 'basePdf'
   | 'changeSchemas'
   | 'activeElements'
   | 'deselectSchema'
@@ -39,7 +43,7 @@ type DetailViewProps = Pick<
 const DetailView = (props: DetailViewProps) => {
   const { token } = theme.useToken();
 
-  const { size, schemasList, changeSchemas, deselectSchema, activeSchema } = props;
+  const { schemasList, changeSchemas, deselectSchema, activeSchema, pageSize, basePdf } = props;
   const form = useForm();
 
   const i18n = useContext(I18nContext);
@@ -47,10 +51,13 @@ const DetailView = (props: DetailViewProps) => {
   const options = useContext(OptionsContext);
 
   // Define a type-safe i18n function that accepts string keys
-  const typedI18n = (key: string): string => {
-    // Use a type assertion to handle the union type constraint
-    return typeof i18n === 'function' ? i18n(key as keyof Dict) : key;
-  };
+  const typedI18n = useCallback(
+    (key: string): string => {
+      // Use a type assertion to handle the union type constraint
+      return typeof i18n === 'function' ? i18n(key as keyof Dict) : key;
+    },
+    [i18n],
+  );
 
   const [widgets, setWidgets] = useState<{
     [key: string]: (props: PropPanelWidgetProps) => React.JSX.Element;
@@ -82,6 +89,8 @@ const DetailView = (props: DetailViewProps) => {
     setWidgets(newWidgets);
   }, [activeSchema, pluginsRegistry, JSON.stringify(options)]);
 
+  useEffect(() => form.resetFields(), [activeSchema.id]);
+
   useEffect(() => {
     // Create a type-safe copy of the schema with editable property
     const values: Record<string, unknown> = { ...activeSchema };
@@ -89,9 +98,7 @@ const DetailView = (props: DetailViewProps) => {
     const readOnly = typeof values.readOnly === 'boolean' ? values.readOnly : false;
     values.editable = !readOnly;
     form.setValues(values);
-  }, [activeSchema, form]);
-
-  useEffect(() => form.resetFields(), [activeSchema.id]);
+  }, [activeSchema]);
 
   useEffect(() => {
     uniqueSchemaName.current = (value: string): boolean => {
@@ -115,6 +122,37 @@ const DetailView = (props: DetailViewProps) => {
   // Use proper type for validator function parameter
   const validateUniqueSchemaName = (_: unknown, value: string): boolean =>
     uniqueSchemaName.current(value);
+
+  // Calculate padding values once
+  const [paddingTop, paddingRight, paddingBottom, paddingLeft] = isBlankPdf(basePdf)
+    ? basePdf.padding
+    : [0, 0, 0, 0];
+
+  // Cross-field validation: only checks when both fields are individually valid
+  const validatePosition = (_: unknown, value: number, fieldName: string): boolean => {
+    const formValues = form.getValues() as Record<string, unknown>;
+    const position = formValues.position as { x: number; y: number } | undefined;
+    const width = formValues.width as number | undefined;
+    const height = formValues.height as number | undefined;
+
+    if (!position || width === undefined || height === undefined) return true;
+
+    if (fieldName === 'x') {
+      if (value < paddingLeft || value > pageSize.width - paddingRight) return true;
+      if (width > 0 && value + width > pageSize.width - paddingRight) return false;
+    } else if (fieldName === 'y') {
+      if (value < paddingTop || value > pageSize.height - paddingBottom) return true;
+      if (height > 0 && value + height > pageSize.height - paddingBottom) return false;
+    } else if (fieldName === 'width') {
+      if (position.x < paddingLeft || position.x > pageSize.width - paddingRight) return true;
+      if (value > 0 && position.x + value > pageSize.width - paddingRight) return false;
+    } else if (fieldName === 'height') {
+      if (position.y < paddingTop || position.y > pageSize.height - paddingBottom) return true;
+      if (value > 0 && position.y + value > pageSize.height - paddingBottom) return false;
+    }
+
+    return true;
+  };
 
   // Use explicit type for debounce function that matches the expected signature
   const handleWatch = debounce(function (...args: unknown[]) {
@@ -223,6 +261,10 @@ const DetailView = (props: DetailViewProps) => {
       })()
     : emptySchema;
 
+  // Calculate max values considering padding
+  const maxWidth = pageSize.width - paddingLeft - paddingRight;
+  const maxHeight = pageSize.height - paddingTop - paddingBottom;
+
   // Create a type-safe schema object
   const propPanelSchema: PropPanelSchema = {
     type: 'object',
@@ -275,8 +317,36 @@ const DetailView = (props: DetailViewProps) => {
         type: 'object',
         widget: 'card',
         properties: {
-          x: { title: 'X', type: 'number', widget: 'inputNumber', required: true, span: 8, min: 0 },
-          y: { title: 'Y', type: 'number', widget: 'inputNumber', required: true, span: 8, min: 0 },
+          x: {
+            title: 'X',
+            type: 'number',
+            widget: 'inputNumber',
+            required: true,
+            span: 8,
+            min: paddingLeft,
+            max: pageSize.width - paddingRight,
+            rules: [
+              {
+                validator: (_: unknown, value: number) => validatePosition(_, value, 'x'),
+                message: typedI18n('validation.outOfBounds'),
+              },
+            ],
+          },
+          y: {
+            title: 'Y',
+            type: 'number',
+            widget: 'inputNumber',
+            required: true,
+            span: 8,
+            min: paddingTop,
+            max: pageSize.height - paddingBottom,
+            rules: [
+              {
+                validator: (_: unknown, value: number) => validatePosition(_, value, 'y'),
+                message: typedI18n('validation.outOfBounds'),
+              },
+            ],
+          },
         },
       },
       width: {
@@ -285,7 +355,13 @@ const DetailView = (props: DetailViewProps) => {
         widget: 'inputNumber',
         required: true,
         span: 6,
-        props: { min: 0 },
+        props: { min: 0, max: maxWidth },
+        rules: [
+          {
+            validator: (_: unknown, value: number) => validatePosition(_, value, 'width'),
+            message: typedI18n('validation.outOfBounds'),
+          },
+        ],
       },
       height: {
         title: typedI18n('height'),
@@ -293,7 +369,13 @@ const DetailView = (props: DetailViewProps) => {
         widget: 'inputNumber',
         required: true,
         span: 6,
-        props: { min: 0 },
+        props: { min: 0, max: maxHeight },
+        rules: [
+          {
+            validator: (_: unknown, value: number) => validatePosition(_, value, 'height'),
+            message: typedI18n('validation.outOfBounds'),
+          },
+        ],
       },
       rotate: {
         title: typedI18n('rotate'),
@@ -373,15 +455,20 @@ const DetailView = (props: DetailViewProps) => {
   }
 
   return (
-    <div>
-      <div style={{ height: 40, display: 'flex', alignItems: 'center' }}>
+    <SidebarFrame className={DESIGNER_CLASSNAME + 'detail-view'}>
+      <SidebarHeader>
         <Button
+          className={DESIGNER_CLASSNAME + 'back-button'}
           style={{
             position: 'absolute',
+            left: SIDEBAR_H_PADDING_PX,
             zIndex: 100,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            transform: 'translateY(-50%)',
+            top: '50%',
+            paddingTop: '3px',
           }}
           onClick={deselectSchema}
           icon={<Menu strokeWidth={1.5} size={20} />}
@@ -389,15 +476,8 @@ const DetailView = (props: DetailViewProps) => {
         <Text strong style={{ textAlign: 'center', width: '100%' }}>
           {typedI18n('editField')}
         </Text>
-      </div>
-      <Divider style={{ marginTop: token.marginXS, marginBottom: token.marginXS }} />
-      <div
-        style={{
-          height: getSidebarContentHeight(size.height),
-          overflowY: 'auto',
-          overflowX: 'hidden',
-        }}
-      >
+      </SidebarHeader>
+      <SidebarBody>
         <FormRenderComponent
           form={form}
           schema={propPanelSchema}
@@ -405,8 +485,8 @@ const DetailView = (props: DetailViewProps) => {
           watch={{ '#': handleWatch }}
           locale="en-US"
         />
-      </div>
-    </div>
+      </SidebarBody>
+    </SidebarFrame>
   );
 };
 

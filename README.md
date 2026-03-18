@@ -15,7 +15,7 @@
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="pdfme is released under the MIT license." />
   </a>
   <a href="https://deepwiki.com/pdfme/pdfme">
-    <img src="https://img.shields.io/badge/DeepWiki-pdfme%2Fpdfme-blue.svg" alt="DeepWiki" />
+    <img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki">
   </a>
   <a href="https://www.npmjs.com/package/@pdfme/generator">
     <img src="https://img.shields.io/npm/v/@pdfme/generator.svg" alt="Current npm package version." />
@@ -73,9 +73,9 @@ pdfme Cloud provides all the features of the open-source library, plus:
 
 Support this project by becoming a sponsor. Your logo will appear here with a link to your website.
 
-| [![ProgressLab](https://avatars.githubusercontent.com/u/103434180?s=120&v=4)](https://github.com/ProgressLabIT) | [<img src="https://github.com/user-attachments/assets/e5b1bbbe-bcc2-41bd-9d04-fcd886e62105" alt="photoquest_logo" width="150">](https://photoquest.wedding/) | [![New Sponsor](https://user-images.githubusercontent.com/10214025/90518111-e74bbb00-e198-11ea-8f88-c9e3c1aa4b5b.png)](https://github.com/sponsors/pdfme) |
-| :---: | :---: | :---: |
-| [ProgressLab](https://github.com/ProgressLabIT) | [PhotoQuest](https://photoquest.wedding/) | [New Sponsor](https://github.com/sponsors/pdfme) |
+| [![ProgressLab](https://avatars.githubusercontent.com/u/103434180?s=120&v=4)](https://github.com/ProgressLabIT) | [<img src="https://github.com/user-attachments/assets/e5b1bbbe-bcc2-41bd-9d04-fcd886e62105" alt="photoquest_logo" width="150">](https://photoquest.wedding/) | [<img src="https://avatars.githubusercontent.com/u/6552685?s=200&v=4" alt="Famly" width="150">](https://famly.co) | [![New Sponsor](https://user-images.githubusercontent.com/10214025/90518111-e74bbb00-e198-11ea-8f88-c9e3c1aa4b5b.png)](https://github.com/sponsors/pdfme) |
+| :---: | :---: | :---: | :---: |
+| [ProgressLab](https://github.com/ProgressLabIT) | [PhotoQuest](https://photoquest.wedding/) | [Famly](https://famly.co) | [New Sponsor](https://github.com/sponsors/pdfme) |
 
 ## Contributors
 

@@ -1,4 +1,4 @@
-import React, { useRef, useState, useContext, useCallback } from 'react';
+import React, { useRef, useState, useContext, useCallback, useEffect } from 'react';
 import {
   cloneDeep,
   ZOOM,
@@ -54,7 +54,7 @@ const TemplateEditor = ({
   onChangeTemplate: (t: Template) => void;
 } & {
   onChangeTemplate: (t: Template) => void;
-  onPageCursorChange: (newPageCursor: number) => void;
+  onPageCursorChange: (newPageCursor: number, totalPages: number) => void;
 }) => {
   const past = useRef<SchemaForUI[][]>([]);
   const future = useRef<SchemaForUI[][]>([]);
@@ -70,8 +70,8 @@ const TemplateEditor = ({
   const [activeElements, setActiveElements] = useState<HTMLElement[]>([]);
   const [schemasList, setSchemasList] = useState<SchemaForUI[][]>([[]] as SchemaForUI[][]);
   const [pageCursor, setPageCursor] = useState(0);
-  const [zoomLevel, setZoomLevel] = useState(1);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [zoomLevel, setZoomLevel] = useState(options.zoomLevel ?? 1);
+  const [sidebarOpen, setSidebarOpen] = useState(options.sidebarOpen ?? true);
   const [prevTemplate, setPrevTemplate] = useState<Template | null>(null);
 
   const { backgrounds, pageSizes, scale, error, refresh } = useUIPreProcessor({
@@ -91,6 +91,18 @@ const TemplateEditor = ({
     setHoveringSchemaId(null);
   };
 
+  // Update component state only when _options_ changes
+  // Ignore exhaustive useEffect dependency warnings here
+  useEffect(() => {
+    if (typeof options.zoomLevel === 'number' && options.zoomLevel !== zoomLevel) {
+      setZoomLevel(options.zoomLevel);
+    }
+    if (typeof options.sidebarOpen === 'boolean' && options.sidebarOpen !== sidebarOpen) {
+      setSidebarOpen(options.sidebarOpen);
+    }
+    // eslint-disable-next-line
+  }, [options]);
+
   useScrollPageCursor({
     ref: canvasRef,
     pageSizes,
@@ -98,7 +110,7 @@ const TemplateEditor = ({
     pageCursor,
     onChangePageCursor: (p) => {
       setPageCursor(p);
-      onPageCursorChange(p);
+      onPageCursorChange(p, schemasList.length);
       onEditEnd();
     },
   });
@@ -227,6 +239,9 @@ const TemplateEditor = ({
     onChangeTemplate(newTemplate);
     await updateTemplate(newTemplate);
     void refresh(newTemplate);
+    
+    // Notify page change with updated total pages
+    onPageCursorChange(newPageCursor, sl.length);
 
     // Use setTimeout to update scroll position after render
     setTimeout(() => {
@@ -314,6 +329,7 @@ const TemplateEditor = ({
               // Update scroll position and state
               canvasRef.current.scrollTop = getPagesScrollTopByIndex(pageSizes, p, scale);
               setPageCursor(p);
+              onPageCursorChange(p, schemasList.length);
               onEditEnd();
             }}
             zoomLevel={zoomLevel}
@@ -327,6 +343,7 @@ const TemplateEditor = ({
             height={canvasRef.current ? canvasRef.current.clientHeight : 0}
             size={size}
             pageSize={pageSizes[pageCursor] ?? []}
+            basePdf={template.basePdf}
             activeElements={activeElements}
             schemasList={schemasList}
             schemas={schemasList[pageCursor] ?? []}

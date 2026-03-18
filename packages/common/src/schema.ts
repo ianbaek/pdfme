@@ -46,6 +46,7 @@ export const Dict = z.object({
   'validation.uniqueName': z.string(),
   'validation.hexColor': z.string(),
   'validation.dateTimeFormat': z.string(),
+  'validation.outOfBounds': z.string(),
 
   // -----------------used in schemas-----------------
   'schemas.color': z.string(),
@@ -87,6 +88,7 @@ export const Dict = z.object({
   'schemas.table.alternateBackgroundColor': z.string(),
   'schemas.table.tableStyle': z.string(),
   'schemas.table.showHead': z.string(),
+  'schemas.table.repeatHead': z.string(),
   'schemas.table.headStyle': z.string(),
   'schemas.table.bodyStyle': z.string(),
   'schemas.table.columnStyle': z.string(),
@@ -128,7 +130,9 @@ const SchemaForUIAdditionalInfo = z.object({ id: z.string() });
 export const SchemaForUI = Schema.merge(SchemaForUIAdditionalInfo);
 
 const ArrayBufferSchema: z.ZodSchema<ArrayBuffer> = z.any().refine((v) => v instanceof ArrayBuffer);
-const Uint8ArraySchema: z.ZodSchema<Uint8Array> = z.any().refine((v) => v instanceof Uint8Array);
+const Uint8ArraySchema: z.ZodSchema<Uint8Array<ArrayBuffer>> = z
+  .any()
+  .refine((v) => v instanceof Uint8Array && v.buffer instanceof ArrayBuffer);
 
 export const BlankPdf = z.object({
   width: z.number(),
@@ -142,7 +146,7 @@ export const CustomPdf = z.union([z.string(), ArrayBufferSchema, Uint8ArraySchem
 export const BasePdf = z.union([CustomPdf, BlankPdf]);
 
 // Legacy keyed structure for BC - we convert to SchemaPageArray on import
-export const LegacySchemaPageArray = z.array(z.record(Schema));
+export const LegacySchemaPageArray = z.array(z.record(z.string(), Schema));
 export const SchemaPageArray = z.array(z.array(Schema));
 
 export const Template = z
@@ -153,9 +157,10 @@ export const Template = z
   })
   .passthrough();
 
-export const Inputs = z.array(z.record(z.any())).min(1);
+export const Inputs = z.array(z.record(z.string(), z.any())).min(1);
 
 export const Font = z.record(
+  z.string(),
   z.object({
     data: z.union([z.string(), ArrayBufferSchema, Uint8ArraySchema]),
     fallback: z.boolean().optional(),
@@ -165,11 +170,11 @@ export const Font = z.record(
 
 export const Plugin = z
   .object({
-    ui: z.function().args(z.any()).returns(z.any()),
-    pdf: z.function().args(z.any()).returns(z.any()),
+    ui: z.any(),
+    pdf: z.any(),
     propPanel: z.object({
       schema: z.unknown(),
-      widgets: z.record(z.any()).optional(),
+      widgets: z.record(z.string(), z.any()).optional(),
       defaultSchema: Schema,
     }),
     icon: z.string().optional(),
@@ -181,7 +186,7 @@ export const CommonOptions = z.object({ font: Font.optional() }).passthrough();
 const CommonProps = z.object({
   template: Template,
   options: CommonOptions.optional(),
-  plugins: z.record(Plugin).optional(),
+  plugins: z.record(z.string(), Plugin).optional(),
 });
 
 // -------------------generate-------------------
@@ -222,6 +227,8 @@ export const UIOptions = CommonOptions.extend({
       }).passthrough()
     ])
   ).optional(),
+  sidebarOpen: z.boolean().optional(),
+  zoomLevel: z.number().optional(),
 });
 
 const HTMLElementSchema: z.ZodSchema<HTMLElement> = z.any().refine((v) => v instanceof HTMLElement);

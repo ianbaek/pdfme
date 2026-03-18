@@ -1,6 +1,9 @@
 import { Schema, Template, BasePdf, BlankPdf, CommonOptions } from './types.js';
 import { cloneDeep, isBlankPdf } from './helper.js';
 
+/** Floating point tolerance for comparisons */
+const EPSILON = 0.01;
+
 interface ModifyTemplateForDynamicTableArg {
   template: Template;
   input: Record<string, string>;
@@ -17,267 +20,308 @@ interface ModifyTemplateForDynamicTableArg {
   ) => Promise<number[]>;
 }
 
-class LayoutNode {
-  index = 0;
-
-  schema?: Schema;
-
-  children: LayoutNode[] = [];
-
-  width = 0;
-  height = 0;
-  padding: [number, number, number, number] = [0, 0, 0, 0];
-  position: { x: number; y: number } = { x: 0, y: 0 };
-
-  constructor({ width = 0, height = 0 } = {}) {
-    this.width = width;
-    this.height = height;
-  }
-
-  setIndex(index: number): void {
-    this.index = index;
-  }
-
-  setSchema(schema: Schema): void {
-    this.schema = schema;
-  }
-
-  setWidth(width: number): void {
-    this.width = width;
-  }
-
-  setHeight(height: number): void {
-    this.height = height;
-  }
-
-  setPadding(padding: [number, number, number, number]): void {
-    this.padding = padding;
-  }
-
-  setPosition(position: { x: number; y: number }): void {
-    this.position = position;
-  }
-
-  insertChild(child: LayoutNode): void {
-    const index = this.getChildCount();
-    child.setIndex(index);
-    this.children.splice(index, 0, child);
-  }
-
-  getChildCount(): number {
-    return this.children.length;
-  }
-
-  getChild(index: number): LayoutNode {
-    return this.children[index];
-  }
-}
-
-function createPage(basePdf: BlankPdf) {
-  const page = new LayoutNode({ ...basePdf });
-  page.setPadding(basePdf.padding);
-  return page;
-}
-
-function createNode(arg: {
+interface LayoutItem {
   schema: Schema;
-  position: { x: number; y: number };
-  width: number;
+  baseY: number;
   height: number;
-}) {
-  const { position, width, height, schema } = arg;
-  const node = new LayoutNode({ width, height });
-  node.setPosition(position);
-  node.setSchema(schema);
-  return node;
+  dynamicHeights: number[];
 }
 
-function resortChildren(page: LayoutNode, orderMap: Map<string, number>): void {
-  page.children = page.children
-    .sort((a, b) => {
-      const orderA = orderMap.get(a.schema?.name ?? '');
-      const orderB = orderMap.get(b.schema?.name ?? '');
-      if (orderA === undefined || orderB === undefined) {
-        throw new Error('[@pdfme/common] order is not defined');
-      }
-      return orderA - orderB;
-    })
-    .map((child, index) => {
-      child.setIndex(index);
-      return child;
+/** Calculate the content height of a page (drawable area excluding padding) */
+const getContentHeight = (basePdf: BlankPdf): number =>
+  basePdf.height - basePdf.padding[0] - basePdf.padding[2];
+
+/** Get the input value for a schema */
+const getSchemaValue = (schema: Schema, input: Record<string, string>): string =>
+  (schema.readOnly ? schema.content : input?.[schema.name]) || '';
+
+/**
+ * Normalize schemas within a single page into layout items.
+ * Returns items sorted by Y coordinate with their order preserved.
+ */
+function normalizePageSchemas(
+  pageSchemas: Schema[],
+  paddingTop: number,
+): { items: LayoutItem[]; orderMap: Map<string, number> } {
+  const items: LayoutItem[] = [];
+  const orderMap = new Map<string, number>();
+
+  pageSchemas.forEach((schema, index) => {
+    const localY = schema.position.y - paddingTop;
+    items.push({
+      schema: cloneDeep(schema),
+      baseY: localY,
+      height: schema.height,
+      dynamicHeights: [schema.height], // Will be updated later
     });
-}
+    orderMap.set(schema.name, index);
+  });
 
-async function createOnePage(
-  arg: {
-    basePdf: BlankPdf;
-    schemaPage: Schema[];
-    orderMap: Map<string, number>;
-  } & Omit<ModifyTemplateForDynamicTableArg, 'template'>,
-): Promise<LayoutNode> {
-  const { basePdf, schemaPage, orderMap, input, options, _cache, getDynamicHeights } = arg;
-  const page = createPage(basePdf);
-
-  const schemaPositions: number[] = [];
-  const sortedSchemaEntries = cloneDeep(schemaPage).sort((a, b) => a.position.y - b.position.y);
-  const diffMap = new Map();
-  for (const schema of sortedSchemaEntries) {
-    const { position, width } = schema;
-
-    const opt = { schema, basePdf, options, _cache };
-    const value = (schema.readOnly ? schema.content : input?.[schema.name]) || '';
-    const heights = await getDynamicHeights(value, opt);
-
-    const heightsSum = heights.reduce((acc, cur) => acc + cur, 0);
-    const originalHeight = schema.height;
-    if (heightsSum !== originalHeight) {
-      diffMap.set(position.y + originalHeight, heightsSum - originalHeight);
+  // Sort by Y coordinate (preserve original order for same position)
+  items.sort((a, b) => {
+    if (Math.abs(a.baseY - b.baseY) > EPSILON) {
+      return a.baseY - b.baseY;
     }
-    heights.forEach((height, index) => {
-      let y = schema.position.y + heights.reduce((acc, cur, i) => (i < index ? acc + cur : acc), 0);
-      for (const [diffY, diff] of diffMap.entries()) {
-        if (diffY <= schema.position.y) {
-          y += diff;
-        }
-      }
-      const node = createNode({ schema, position: { ...position, y }, width, height });
+    return (orderMap.get(a.schema.name) ?? 0) - (orderMap.get(b.schema.name) ?? 0);
+  });
 
-      schemaPositions.push(y + height + basePdf.padding[2]);
-      page.insertChild(node);
-    });
+  return { items, orderMap };
+}
+
+/**
+ * Place rows on pages, splitting across pages as needed.
+ * @returns The final global Y coordinate after placement
+ */
+function placeRowsOnPages(
+  schema: Schema,
+  dynamicHeights: number[],
+  startGlobalY: number,
+  contentHeight: number,
+  paddingTop: number,
+  pages: Schema[][],
+): number {
+  let currentRowIndex = 0;
+  let currentPageIndex = Math.floor(startGlobalY / contentHeight);
+  let currentYInPage = startGlobalY % contentHeight;
+
+  if (currentYInPage < 0) currentYInPage = 0;
+
+  let actualGlobalEndY = 0;
+  const isSplittable = dynamicHeights.length > 1;
+
+  while (currentRowIndex < dynamicHeights.length) {
+    // Ensure page exists
+    while (pages.length <= currentPageIndex) pages.push([]);
+
+    const spaceLeft = contentHeight - currentYInPage;
+    const rowHeight = dynamicHeights[currentRowIndex];
+
+    // If row doesn't fit, move to next page
+    if (rowHeight > spaceLeft + EPSILON) {
+      const isAtPageStart = Math.abs(spaceLeft - contentHeight) <= EPSILON;
+
+      if (!isAtPageStart) {
+        currentPageIndex++;
+        currentYInPage = 0;
+        continue;
+      }
+      // Force placement for oversized rows that don't fit even on a fresh page
+    }
+
+    // Pack as many rows as possible on this page
+    let chunkHeight = 0;
+    const startRowIndex = currentRowIndex;
+
+    while (currentRowIndex < dynamicHeights.length) {
+      const h = dynamicHeights[currentRowIndex];
+      if (currentYInPage + chunkHeight + h <= contentHeight + EPSILON) {
+        chunkHeight += h;
+        currentRowIndex++;
+      } else {
+        break;
+      }
+    }
+
+    // Don't leave header alone on a page without any data rows
+    // If only header fits and there are data rows remaining, move everything to next page
+    // BUT: if already at page top, don't move (prevents infinite loop when data row is too large)
+    // NOTE: multiTable has no header row in dynamicHeights, so skip this guard
+    const isAtPageTop = currentYInPage <= EPSILON;
+    if (
+      isSplittable &&
+      schema.type !== 'multiTable' &&
+      startRowIndex === 0 &&
+      currentRowIndex === 1 &&
+      dynamicHeights.length > 1 &&
+      !isAtPageTop
+    ) {
+      currentRowIndex = 0;
+      currentPageIndex++;
+      currentYInPage = 0;
+      continue;
+    }
+
+    // Force at least one row to prevent infinite loop
+    if (currentRowIndex === startRowIndex) {
+      chunkHeight += dynamicHeights[currentRowIndex];
+      currentRowIndex++;
+    }
+
+    // Create schema for this chunk
+    const newSchema: Schema = {
+      ...schema,
+      height: chunkHeight,
+      position: { ...schema.position, y: currentYInPage + paddingTop },
+    };
+
+    // Set bodyRange for splittable elements
+    // For regular tables: dynamicHeights[0] = header row, dynamicHeights[1+] = body rows
+    //   So subtract 1 to convert to body index
+    // For multiTable: all dynamicHeights entries are body rows (no header offset)
+    if (isSplittable) {
+      const isMultiTable = schema.type === 'multiTable';
+      newSchema.__bodyRange = {
+        start: isMultiTable
+          ? startRowIndex
+          : (startRowIndex === 0 ? 0 : startRowIndex - 1),
+        end: isMultiTable
+          ? currentRowIndex
+          : currentRowIndex - 1,
+      };
+      newSchema.__isSplit = startRowIndex > 0;
+    }
+
+    pages[currentPageIndex].push(newSchema);
+
+    // Update position
+    currentYInPage += chunkHeight;
+
+    if (currentYInPage >= contentHeight - EPSILON) {
+      currentPageIndex++;
+      currentYInPage = 0;
+    }
+
+    actualGlobalEndY = currentPageIndex * contentHeight + currentYInPage;
   }
 
-  const pageHeight = Math.max(...schemaPositions, basePdf.height - basePdf.padding[2]);
-  page.setHeight(pageHeight);
-
-  resortChildren(page, orderMap);
-
-  return page;
+  return actualGlobalEndY;
 }
 
-function breakIntoPages(arg: {
-  longPage: LayoutNode;
-  orderMap: Map<string, number>;
-  basePdf: BlankPdf;
-}): LayoutNode[] {
-  const { longPage, orderMap, basePdf } = arg;
-  const pages: LayoutNode[] = [createPage(basePdf)];
-  const [paddingTop, , paddingBottom] = basePdf.padding;
-  const yAdjustments: { page: number; value: number }[] = [];
+/** Sort elements within each page by their original order */
+function sortPagesByOrder(pages: Schema[][], orderMap: Map<string, number>): void {
+  pages.forEach((page) => {
+    page.sort((a, b) => (orderMap.get(a.name) ?? 0) - (orderMap.get(b.name) ?? 0));
+  });
+}
 
-  const getPageHeight = (pageIndex: number) =>
-    basePdf.height - paddingBottom - (pageIndex > 0 ? paddingTop : 0);
+/** Remove trailing empty pages */
+function removeTrailingEmptyPages(pages: Schema[][]): void {
+  while (pages.length > 1 && pages[pages.length - 1].length === 0) {
+    pages.pop();
+  }
+}
 
-  const calculateNewY = (y: number, pageIndex: number) => {
-    const newY = y - pageIndex * (basePdf.height - paddingTop - paddingBottom);
+/**
+ * Process a single template page that has dynamic content.
+ * Uses the same layout algorithm as the original implementation,
+ * but scoped to a single page's schemas.
+ */
+function processDynamicPage(
+  items: LayoutItem[],
+  orderMap: Map<string, number>,
+  contentHeight: number,
+  paddingTop: number,
+): Schema[][] {
+  const pages: Schema[][] = [];
+  let totalYOffset = 0;
 
-    while (pages.length <= pageIndex) {
-      if (!pages[pageIndex]) {
-        pages.push(createPage(basePdf));
-        yAdjustments.push({ page: pageIndex, value: (newY - paddingTop) * -1 });
-      }
-    }
-    return newY + (yAdjustments.find((adj) => adj.page === pageIndex)?.value || 0);
-  };
+  for (const item of items) {
+    const currentGlobalStartY = item.baseY + totalYOffset;
 
-  const children = longPage.children.sort((a, b) => a.position.y - b.position.y);
-  for (let i = 0; i < children.length; i++) {
-    const { schema, position, height, width } = children[i];
-    const { y, x } = position;
+    const actualGlobalEndY = placeRowsOnPages(
+      item.schema,
+      item.dynamicHeights,
+      currentGlobalStartY,
+      contentHeight,
+      paddingTop,
+      pages,
+    );
 
-    let targetPageIndex = Math.floor(y / getPageHeight(pages.length - 1));
-    let newY = calculateNewY(y, targetPageIndex);
-
-    if (newY + height > basePdf.height - paddingBottom) {
-      targetPageIndex++;
-      newY = calculateNewY(y, targetPageIndex);
-    }
-
-    if (!schema) throw new Error('[@pdfme/common] schema is undefined');
-
-    const clonedElement = createNode({ schema, position: { x, y: newY }, width, height });
-    pages[targetPageIndex].insertChild(clonedElement);
+    // Update offset: difference between actual and original end position
+    const originalGlobalEndY = item.baseY + item.height;
+    totalYOffset = actualGlobalEndY - originalGlobalEndY;
   }
 
-  pages.forEach((page) => resortChildren(page, orderMap));
+  sortPagesByOrder(pages, orderMap);
+  removeTrailingEmptyPages(pages);
 
   return pages;
 }
 
-function createNewTemplate(pages: LayoutNode[], basePdf: BlankPdf): Template {
-  const newTemplate: Template = {
-    schemas: Array.from({ length: pages.length }, () => [] as Schema[]),
-    basePdf: basePdf,
-  };
-
-  const nameToSchemas = new Map<string, LayoutNode[]>();
-
-  cloneDeep(pages).forEach((page, pageIndex) => {
-    page.children.forEach((child) => {
-      const { schema } = child;
-      if (!schema) throw new Error('[@pdfme/common] schema is undefined');
-
-      const name = schema.name;
-      if (!nameToSchemas.has(name)) {
-        nameToSchemas.set(name, []);
-      }
-      nameToSchemas.get(name)!.push(child);
-
-      const sameNameSchemas = page.children.filter((c) => c.schema?.name === name);
-      const start = nameToSchemas.get(name)!.length - sameNameSchemas.length;
-
-      if (sameNameSchemas.length > 0) {
-        if (!sameNameSchemas[0].schema) {
-          throw new Error('[@pdfme/common] schema is undefined');
-        }
-
-        // Use the first schema to get the schema and position
-        const schema = sameNameSchemas[0].schema;
-        const height = sameNameSchemas.reduce((acc, cur) => acc + cur.height, 0);
-        const position = sameNameSchemas[0].position;
-
-        // Currently, __bodyRange exists for table schemas, but if we make it more abstract,
-        // it could be used for other schemas as well to render schemas that have been split by page breaks, starting from the middle.
-        schema.__bodyRange = {
-          start: Math.max(schema.type === 'multiTable' ? start : (start - 1), 0),
-          end:
-            start + (schema.type === 'multiTable' ? sameNameSchemas.length : sameNameSchemas.length - 1),
-        };
-
-        // Currently, this is used to determine whether to display the header when a table is split.
-        schema.__isSplit = start > 0;
-
-        const newSchema = Object.assign({}, schema, { position, height });
-        const index = newTemplate.schemas[pageIndex].findIndex((s) => s.name === name);
-        if (index !== -1) {
-          newTemplate.schemas[pageIndex][index] = newSchema;
-        } else {
-          newTemplate.schemas[pageIndex].push(newSchema);
-        }
-      }
-    });
-  });
-
-  return newTemplate;
-}
-
+/**
+ * Process a template containing tables with dynamic heights
+ * and generate a new template with proper page breaks.
+ *
+ * Processing is done page-by-page:
+ * - Pages with height changes are processed with full layout calculations
+ * - Pages without height changes are copied as-is (no offset propagation between pages)
+ *
+ * This reduces computation cost by:
+ * 1. Limiting layout calculations to pages that need them
+ * 2. Avoiding cross-page offset propagation for static pages
+ */
 export const getDynamicTemplate = async (
   arg: ModifyTemplateForDynamicTableArg,
 ): Promise<Template> => {
-  const { template } = arg;
-  if (!isBlankPdf(template.basePdf)) {
+  const { template, input, options, _cache, getDynamicHeights } = arg;
+  const basePdf = template.basePdf;
+
+  if (!isBlankPdf(basePdf)) {
     return template;
   }
 
-  const basePdf = template.basePdf;
-  const pages: LayoutNode[] = [];
+  const contentHeight = getContentHeight(basePdf);
+  const paddingTop = basePdf.padding[0];
+  const resultPages: Schema[][] = [];
+  const PARALLEL_LIMIT = 10;
 
-  for (const schemaPage of template.schemas) {
-    const orderMap = new Map(schemaPage.map((schema, index) => [schema.name, index]));
-    const longPage = await createOnePage({ basePdf, schemaPage, orderMap, ...arg });
-    const brokenPages = breakIntoPages({ longPage, basePdf, orderMap });
-    pages.push(...brokenPages);
+  // Process each template page independently
+  for (let pageIndex = 0; pageIndex < template.schemas.length; pageIndex++) {
+    const pageSchemas = template.schemas[pageIndex];
+
+    // Normalize this page's schemas
+    const { items, orderMap } = normalizePageSchemas(pageSchemas, paddingTop);
+
+    // Calculate dynamic heights for this page's schemas with concurrency limit
+    for (let i = 0; i < items.length; i += PARALLEL_LIMIT) {
+      const chunk = items.slice(i, i + PARALLEL_LIMIT);
+      const chunkResults = await Promise.all(
+        chunk.map((item) => {
+          const value = getSchemaValue(item.schema, input);
+          return getDynamicHeights(value, {
+            schema: item.schema,
+            basePdf,
+            options,
+            _cache,
+          }).then((heights) => (heights.length === 0 ? [0] : heights));
+        }),
+      );
+      // Update items with calculated heights
+      for (let j = 0; j < chunkResults.length; j++) {
+        items[i + j].dynamicHeights = chunkResults[j];
+      }
+    }
+
+    // Process all pages independently (no cross-page offset propagation)
+    const processedPages = processDynamicPage(items, orderMap, contentHeight, paddingTop);
+    resultPages.push(...processedPages);
   }
 
-  return createNewTemplate(pages, template.basePdf);
+  removeTrailingEmptyPages(resultPages);
+
+  // Check if anything changed - return original template if not
+  if (resultPages.length === template.schemas.length) {
+    let unchanged = true;
+    for (let i = 0; i < resultPages.length && unchanged; i++) {
+      if (resultPages[i].length !== template.schemas[i].length) {
+        unchanged = false;
+        break;
+      }
+      for (let j = 0; j < resultPages[i].length && unchanged; j++) {
+        const orig = template.schemas[i][j];
+        const result = resultPages[i][j];
+        if (
+          Math.abs(orig.height - result.height) > EPSILON ||
+          Math.abs(orig.position.y - result.position.y) > EPSILON
+        ) {
+          unchanged = false;
+        }
+      }
+    }
+    if (unchanged) {
+      return template;
+    }
+  }
+
+  return { basePdf, schemas: resultPages };
 };

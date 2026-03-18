@@ -18,7 +18,7 @@ import {
   validateRequiredFields,
 } from './helper.js';
 
-const generate = async (props: GenerateProps) => {
+const generate = async (props: GenerateProps): Promise<Uint8Array<ArrayBuffer>> => {
   checkGenerateProps(props);
   const { inputs, template: _template, options = {}, plugins: userPlugins = {} } = props;
   const template = cloneDeep(_template);
@@ -97,11 +97,13 @@ const generate = async (props: GenerateProps) => {
           if (!render) {
             continue;
           }
-          const value = staticSchema.readOnly ? replacePlaceholders({
-            content: staticSchema.content || '',
-            variables: { ...input, totalPages: basePages.length, currentPage: j + 1 },
-            schemas: schemas, // Use the properly typed schemas variable
-          }) : staticSchema.content || '';
+          const value = staticSchema.readOnly
+            ? replacePlaceholders({
+                content: staticSchema.content || '',
+                variables: { ...input, totalPages: basePages.length, currentPage: j + 1 },
+                schemas: schemas, // Use the properly typed schemas variable
+              })
+            : staticSchema.content || '';
 
           staticSchema.position = {
             x: staticSchema.position.x + boundingBoxLeft,

@@ -1,16 +1,13 @@
 import React, { useContext, useState } from 'react';
 import type { SidebarProps } from '../../../../types.js';
-import { RIGHT_SIDEBAR_WIDTH } from '../../../../constants.js';
+import { DESIGNER_CLASSNAME } from '../../../../constants.js';
 import { I18nContext } from '../../../../contexts.js';
-import { getSidebarContentHeight } from '../../../../helper.js';
-import { theme, Input, Typography, Divider, Button, List } from 'antd';
-import { Menu } from 'lucide-react';
+import { Input, Typography, Button, List } from 'antd';
 import SelectableSortableContainer from './SelectableSortableContainer.js';
+import { SidebarBody, SidebarFooter, SidebarFrame, SidebarHeader } from '../layout.js';
 
 const { Text } = Typography;
 const { TextArea } = Input;
-
-const headHeight = 40;
 
 const ListView = (
   props: Pick<
@@ -18,7 +15,6 @@ const ListView = (
     | 'schemas'
     | 'onSortEnd'
     | 'onEdit'
-    | 'size'
     | 'hoveringSchemaId'
     | 'onChangeHoveringSchemaId'
     | 'changeSchemas'
@@ -31,7 +27,6 @@ const ListView = (
     schemas,
     onSortEnd,
     onEdit,
-    size,
     hoveringSchemaId,
     onChangeHoveringSchemaId,
     changeSchemas,
@@ -39,12 +34,10 @@ const ListView = (
     usedFieldNames,
     addSchema,
   } = props;
-  const { token } = theme.useToken();
   const i18n = useContext(I18nContext);
   const [isBulkUpdateFieldNamesMode, setIsBulkUpdateFieldNamesMode] = useState(false);
   const [showAvailableFields, setShowAvailableFields] = useState(false);
   const [fieldNamesValue, setFieldNamesValue] = useState('');
-  const height = getSidebarContentHeight(size.height);
 
   const commitBulk = () => {
     const names = fieldNamesValue.split('\n');
@@ -94,39 +87,27 @@ const ListView = (
   };
 
   return (
-    <div>
-      <div style={{ height: headHeight, display: 'flex', alignItems: 'center' }}>
-        <Button
-          style={{
-            position: 'absolute',
-            zIndex: 100,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-          onClick={() => setShowAvailableFields(false)}
-          icon={<Menu strokeWidth={1.5} size={20} />}
-        />
+    <SidebarFrame className={DESIGNER_CLASSNAME + 'list-view'}>
+      <SidebarHeader>
         <Text strong style={{ textAlign: 'center', width: '100%' }}>
           {showAvailableFields ? i18n('availableDynamicFields') : i18n('fieldsList')}
         </Text>
-      </div>
-      <Divider style={{ marginTop: token.marginXS, marginBottom: token.marginXS }} />
-      <div style={{ height: height - headHeight }}>
+      </SidebarHeader>
+      <SidebarBody>
         {isBulkUpdateFieldNamesMode ? (
           <TextArea
             wrap="off"
             value={fieldNamesValue}
             onChange={(e) => setFieldNamesValue(e.target.value)}
             style={{
-              paddingLeft: 30,
-              height: height - headHeight,
-              width: RIGHT_SIDEBAR_WIDTH - 35,
+              height: '100%',
+              width: '100%',
+              resize: 'none',
               lineHeight: '2.75rem',
             }}
           />
         ) : showAvailableFields && Array.isArray(availableFields) && availableFields.length > 0 ? (
-          <div style={{ height: height - headHeight, overflowY: 'auto' }}>
+          <div style={{ overflowY: 'auto' }}>
             <List
               size="small"
               dataSource={availableFields}
@@ -170,42 +151,55 @@ const ListView = (
             />
           </>
         )}
-        <div
-          style={{
-            paddingTop: '0.5rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-          }}
-        >
-          {isBulkUpdateFieldNamesMode ? (
-            <>
-              <Button size="small" type="text" onClick={commitBulk}>
-                <u> {i18n('commitBulkUpdateFieldName')}</u>
-              </Button>
-              <span style={{ margin: '0 1rem' }}>/</span>
-              <Button size="small" type="text" onClick={() => setIsBulkUpdateFieldNamesMode(false)}>
-                <u> {i18n('cancel')}</u>
-              </Button>
-            </>
-          ) : (
-            <>
-              {Array.isArray(availableFields) && availableFields.length > 0 && (
-                <>
-                  <Button size="small" type="text" onClick={() => setShowAvailableFields(!showAvailableFields)}>
-                    <u>{i18n('availableDynamicFields')}</u>
-                  </Button>
-                  <span style={{ margin: '0 1rem' }}>/</span>
-                </>
-              )}
-              <Button size="small" type="text" onClick={startBulk}>
-                <u> {i18n('bulkUpdateFieldName')}</u>
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
+      </SidebarBody>
+      <SidebarFooter>
+        {isBulkUpdateFieldNamesMode ? (
+          <>
+            <Button
+              className={DESIGNER_CLASSNAME + 'bulk-commit'}
+              size="small"
+              type="text"
+              onClick={commitBulk}
+            >
+              <u> {i18n('commitBulkUpdateFieldName')}</u>
+            </Button>
+            <span>/</span>
+            <Button
+              className={DESIGNER_CLASSNAME + 'bulk-cancel'}
+              size="small"
+              type="text"
+              onClick={() => setIsBulkUpdateFieldNamesMode(false)}
+            >
+              <u> {i18n('cancel')}</u>
+            </Button>
+          </>
+        ) : (
+          <>
+            {Array.isArray(availableFields) && availableFields.length > 0 && (
+              <>
+                <Button
+                  className={DESIGNER_CLASSNAME + 'available-fields'}
+                  size="small"
+                  type="text"
+                  onClick={() => setShowAvailableFields(!showAvailableFields)}
+                >
+                  <u>{i18n('availableDynamicFields')}</u>
+                </Button>
+                <span>/</span>
+              </>
+            )}
+            <Button
+              className={DESIGNER_CLASSNAME + 'bulk-update'}
+              size="small"
+              type="text"
+              onClick={startBulk}
+            >
+              <u> {i18n('bulkUpdateFieldName')}</u>
+            </Button>
+          </>
+        )}
+      </SidebarFooter>
+    </SidebarFrame>
   );
 };
 

@@ -16,18 +16,18 @@
     "typecheck": "tsc"
   },
   "dependencies": {
-    "@docusaurus/core": "^3.7.0",
-    "@docusaurus/module-type-aliases": "^3.7.0",
-    "@docusaurus/plugin-client-redirects": "^3.7.0",
-    "@docusaurus/plugin-google-gtag": "^3.7.0",
-    "@docusaurus/preset-classic": "^3.7.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "@docusaurus/core": "^3.9.2",
+    "@docusaurus/module-type-aliases": "^3.9.1",
+    "@docusaurus/plugin-client-redirects": "^3.9.2",
+    "@docusaurus/plugin-google-gtag": "^3.9.1",
+    "@docusaurus/preset-classic": "^3.9.2",
+    "react": "^19.1.1",
+    "react-dom": "^19.2.4",
     "react-github-btn": "^1.2.1"
   },
   "devDependencies": {
-    "@tsconfig/docusaurus": "^2.0.3",
-    "typescript": "^5.8.3"
+    "@tsconfig/docusaurus": "^2.0.9",
+    "typescript": "^5.9.3"
   },
   "browserslist": {
     "production": [

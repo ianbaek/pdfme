@@ -34,6 +34,7 @@ export interface TableSchema extends Schema {
   showHead: boolean;
   head: string[];
   headWidthPercentages: number[];
+  repeatHead?: boolean;
 
   tableStyles: {
     borderColor: string;

@@ -49,7 +49,7 @@ export const uuid = () =>
   });
 
 const set = <T extends object>(obj: T, path: string | string[], value: unknown) => {
-  path = Array.isArray(path) ? path : path.replace('[', '.').replace(']', '').split('.');
+  path = Array.isArray(path) ? path : path.replace(/\[/g, '.').replace(/\]/g, '').split('.');
   let src: Record<string, unknown> = obj as Record<string, unknown>;
   path.forEach((key, index, array) => {
     if (index == path.length - 1) {
@@ -308,13 +308,11 @@ export const template2SchemasList = async (_template: Template) => {
       const { width, height } = pageSizes[i];
       const xEdge = value.position.x + value.width;
       const yEdge = value.position.y + value.height;
-      if (width < xEdge) {
-        const diff = xEdge - width;
-        value.position.x += diff;
+      if (xEdge > width) {
+        value.position.x = Math.max(0, width - value.width);
       }
-      if (height < yEdge) {
-        const diff = yEdge - height;
-        value.position.y += diff;
+      if (yEdge > height) {
+        value.position.y = Math.max(0, height - value.height);
       }
     });
 
@@ -422,9 +420,6 @@ export const getPagesScrollTopByIndex = (pageSizes: Size[], index: number, scale
     .reduce((acc, cur) => acc + (cur.height * ZOOM + RULER_HEIGHT * scale) * scale, 0);
 };
 
-export const getSidebarContentHeight = (sidebarHeight: number) =>
-  sidebarHeight - RULER_HEIGHT - RULER_HEIGHT / 2 - 30;
-
 const handlePositionSizeChange = (
   schema: SchemaForUI,
   key: string,
@@ -526,7 +521,11 @@ export const setFontNameRecursively = (
   seen.add(obj);
 
   for (const key in obj) {
-    if (key === 'fontName' && Object.prototype.hasOwnProperty.call(obj, key) && obj[key] === undefined) {
+    if (
+      key === 'fontName' &&
+      Object.prototype.hasOwnProperty.call(obj, key) &&
+      obj[key] === undefined
+    ) {
       obj[key] = fontName;
     } else if (typeof obj[key] === 'object' && obj[key] !== null) {
       setFontNameRecursively(obj[key] as Record<string, unknown>, fontName, seen);

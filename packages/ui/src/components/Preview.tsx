@@ -17,7 +17,7 @@ import CtlBar from './CtlBar.js';
 import Paper from './Paper.js';
 import Renderer from './Renderer.js';
 import { useUIPreProcessor, useScrollPageCursor } from '../hooks.js';
-import { FontContext } from '../contexts.js';
+import { FontContext, OptionsContext } from '../contexts.js';
 import { template2SchemasList, getPagesScrollTopByIndex, useMaxZoom } from '../helper.js';
 import { theme } from 'antd';
 
@@ -28,13 +28,16 @@ const Preview = ({
   inputs,
   size,
   onChangeInput,
+  onPageChange,
 }: Omit<PreviewProps, 'domContainer'> & {
   onChangeInput?: (args: { index: number; value: string; name: string }) => void;
+  onPageChange?: (pageInfo: { currentPage: number; totalPages: number }) => void;
   size: Size;
 }) => {
   const { token } = theme.useToken();
 
   const font = useContext(FontContext);
+  const options = useContext(OptionsContext);
   const maxZoom = useMaxZoom();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -42,7 +45,7 @@ const Preview = ({
 
   const [unitCursor, setUnitCursor] = useState(0);
   const [pageCursor, setPageCursor] = useState(0);
-  const [zoomLevel, setZoomLevel] = useState(1);
+  const [zoomLevel, setZoomLevel] = useState(options.zoomLevel ?? 1);
   const [schemasList, setSchemasList] = useState<SchemaForUI[][]>([[]] as SchemaForUI[][]);
 
   const { backgrounds, pageSizes, scale, error, refresh } = useUIPreProcessor({
@@ -56,11 +59,12 @@ const Preview = ({
 
   const input = inputs[unitCursor];
 
-  const init = (template: Template) => {
+  const init = (template: Template, inputOverride?: Record<string, string>) => {
+    const currentInput = inputOverride ?? input;
     const options = { font };
     getDynamicTemplate({
       template,
-      input,
+      input: currentInput,
       options,
       _cache,
       getDynamicHeights: (value, args) => {
@@ -82,6 +86,15 @@ const Preview = ({
       .catch((err) => console.error(`[@pdfme/ui] `, err));
   };
 
+  // Update component state only when _options_ changes
+  // Ignore exhaustive useEffect dependency warnings here
+  useEffect(() => {
+    if (typeof options.zoomLevel === 'number' && options.zoomLevel !== zoomLevel) {
+      setZoomLevel(options.zoomLevel);
+    }
+    // eslint-disable-next-line
+  }, [options]);
+
   useEffect(() => {
     if (unitCursor > inputs.length - 1) {
       setUnitCursor(inputs.length - 1);
@@ -95,7 +108,12 @@ const Preview = ({
     pageSizes,
     scale,
     pageCursor,
-    onChangePageCursor: setPageCursor,
+    onChangePageCursor: (p) => {
+      setPageCursor(p);
+      if (onPageChange) {
+        onPageChange({ currentPage: p, totalPages: schemasList.length });
+      }
+    },
   });
 
   const handleChangeInput = ({ name, value }: { name: string; value: string }) =>
@@ -103,6 +121,8 @@ const Preview = ({
 
   const handleOnChangeRenderer = (args: { key: string; value: unknown }[], schema: SchemaForUI) => {
     let isNeedInit = false;
+    let newInputValue: string | undefined;
+
     args.forEach(({ key: _key, value }) => {
       if (_key === 'content') {
         const newValue = value as string;
@@ -110,7 +130,10 @@ const Preview = ({
         if (newValue === oldValue) return;
         handleChangeInput({ name: schema.name, value: newValue });
         // TODO Improve this to allow schema types to determine whether the execution of getDynamicTemplate is required.
-        if (schema.type === 'table' || schema.type === 'multiTable') isNeedInit = true;
+        if (schema.type === 'table' || schema.type === 'multiTable') {
+          isNeedInit = true;
+          newInputValue = newValue;
+        }
       } else {
         const targetSchema = schemasList[pageCursor].find((s) => s.id === schema.id) as SchemaForUI;
         if (!targetSchema) return;
@@ -119,8 +142,10 @@ const Preview = ({
         targetSchema[_key] = value as string;
       }
     });
-    if (isNeedInit) {
-      init(template);
+    if (isNeedInit && newInputValue !== undefined) {
+      // Pass the updated input directly to recalculate with new value
+      const updatedInput = { ...input, [schema.name]: newInputValue };
+      init(template, updatedInput);
     }
     setSchemasList([...schemasList]);
   };
@@ -139,6 +164,9 @@ const Preview = ({
           if (!containerRef.current) return;
           containerRef.current.scrollTop = getPagesScrollTopByIndex(pageSizes, p, scale);
           setPageCursor(p);
+          if (onPageChange) {
+            onPageChange({ currentPage: p, totalPages: schemasList.length });
+          }
         }}
         zoomLevel={zoomLevel}
         setZoomLevel={setZoomLevel}
