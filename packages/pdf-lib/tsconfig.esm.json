@@ -3,9 +3,12 @@
   "compilerOptions": {
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "rootDir": ".",
     "outDir": "./dist/esm",
     "declaration": true,
     "declarationDir": "dist/types",
     "skipLibCheck": true
-  }
+  },
+  "include": ["src"],
+  "exclude": ["__tests__", "node_modules", "dist"]
 }
